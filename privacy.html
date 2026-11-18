@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy · Listening to the Brain · Manotsava 2026</title>
+<script src="config.js"></script>
+<script src="site.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,600;1,500&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@600&display=swap">
+<style>
+:root{--ivory:#fffaec; --ink:#1a1916; --ink-2:#322f2b; --muted:#4d4d4d; --line:#d9d8d8; --green:#1e8558; color-scheme:light;}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ivory); color:var(--ink); font-family:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif; font-size:17px; line-height:1.6;}
+.wrap{max-width:720px; margin:0 auto; padding:32px max(16px,env(safe-area-inset-left,0px)) 56px;}
+.kicker{font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--green); margin:0 0 12px;}
+h1{font-family:"Spectral",Georgia,serif; font-weight:600; font-size:clamp(32px,6vw,46px); line-height:1.08; margin:0 0 18px;}
+h1 em{font-style:italic; font-weight:500; color:var(--green);}
+h2{font-family:"Spectral",Georgia,serif; font-weight:600; font-size:24px; margin:30px 0 6px;}
+p, li{color:var(--ink-2);}
+ul{padding-left:22px;}
+a{color:var(--green); font-weight:700;}
+.back{display:inline-block; margin-top:30px;}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="kicker">Manotsava 2026 · EEG team</p>
+  <h1>How we use <em>your information</em></h1>
+  <p>These pages are made by the Manotsava 2026 EEG team, NIMHANS, Bengaluru, to explain how EEG works. We collect a small amount of information to learn who the pages reach and how they are used.</p>
+
+  <h2>The visitor form</h2>
+  <p>Before the pages open we ask a few questions through a Google Form: which group describes you (for example student,
+    clinician or member of the public), your age group, gender, where you are visiting from, how you heard about the pages,
+    and whether you have seen an EEG before. We do not ask for your name, email address or phone number. Answers are
+    stored in Google Forms and Google Sheets and are seen only by the EEG team.</p>
+
+  <h2>Usage measurement</h2>
+  <p>After you submit the form, the pages load two measurement tools:</p>
+  <ul>
+    <li><b>Google Analytics 4</b> records which pages you open, how long they are in view, how far you scroll, which buttons
+      and links you use, your device and browser type, and your approximate location (city or region, worked out from your
+      internet address).</li>
+    <li><b>Microsoft Clarity</b> records clicks, scrolling and pointer movement so we can see which parts of the interactive
+      pages are confusing, as heatmaps and session replays. Clarity hides text you type.</li>
+  </ul>
+  <p>Both tools set cookies or similar storage in your browser. The pages also remember in your browser that you have filled
+    the form, so you are not asked again. You can remove all of this by clearing this site's data in your browser settings.</p>
+
+  <h2>What we do not do</h2>
+  <p>We do not sell this information, use it for advertising, or try to identify individual visitors. We report it only as totals,
+    such as how many students visited or how long people spent on each page.</p>
+
+  <p id="contact" hidden>Questions? Write to <a id="mail" href="#"></a>.</p>
+  <a class="back" href="javascript:history.back()">← Back</a>
+</main>
+<script>
+(function () {
+  var C = window.SITE_CONFIG || {};
+  if (C.contactEmail) {
+    var a = document.getElementById("mail");
+    a.textContent = C.contactEmail; a.href = "mailto:" + C.contactEmail;
+    document.getElementById("contact").hidden = false;
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="config.js"></script>
+<script src="site.js"></script>
+<title>Manotsava 2026 - EEG Team · Where Is It Coming From?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&display=swap">
+
+<style>
+/* Layout: instrument panel — head section at left, controls and readout at right,
+   stacking to one column on a phone. Colour comes from the EEG topographic map
+   itself: a red/blue diverging field over cool, slightly blue-biased neutrals. */
+:root{
+  --bg:#EDEEF1; --panel:#FFFFFF; --sunk:#E2E4E9;
+  --fg:#15181F; --dim:#5A6170; --line:#C9CDD6;
+  --pos:#B3322C; --neg:#1C5696; --zero:#F3F1EC;
+  --accent:#C07A17;
+  --font-d:'Archivo','Noto Sans Kannada','Noto Sans Tamil','Noto Sans Devanagari','Noto Sans Telugu','Noto Sans Malayalam','Nirmala UI','Kannada Sangam MN','Tamil Sangam MN','Devanagari Sangam MN','Telugu Sangam MN','Malayalam Sangam MN',system-ui,sans-serif;
+  --font-m:'IBM Plex Mono','Noto Sans Kannada','Noto Sans Tamil','Noto Sans Devanagari','Noto Sans Telugu','Noto Sans Malayalam','Nirmala UI','Kannada Sangam MN','Tamil Sangam MN','Devanagari Sangam MN','Telugu Sangam MN','Malayalam Sangam MN',ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#13161C; --panel:#1B1F27; --sunk:#0D1015;
+  --fg:#EDEFF3; --dim:#9AA2B1; --line:#333A47;
+  --pos:#E06155; --neg:#5B9BE0; --zero:#242832;
+  --accent:#E0A33C; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#13161C; --panel:#1B1F27; --sunk:#0D1015;
+  --fg:#EDEFF3; --dim:#9AA2B1; --line:#333A47;
+  --pos:#E06155; --neg:#5B9BE0; --zero:#242832;
+  --accent:#E0A33C; color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:var(--font-d); font-weight:500;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:20px 28px;
+  margin:0; line-height:1.45;
+}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+header h1{
+  font-size:clamp(26px,5.2vw,40px); font-weight:700; letter-spacing:-.025em;
+  margin:0 0 6px; text-wrap:balance;
+}
+header p{margin:0;color:var(--dim);font-size:clamp(14px,2.2vw,16.5px);max-width:62ch}
+
+.tabs{display:flex;gap:6px;background:var(--sunk);padding:5px;border-radius:12px;align-self:flex-start;flex-wrap:wrap}
+.tabs button{
+  font:inherit;font-weight:600;font-size:15px;border:0;cursor:pointer;
+  padding:9px 18px;border-radius:8px;background:transparent;color:var(--dim);
+}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.tabs button:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+
+.bench{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:780px){ .bench{grid-template-columns:1fr} }
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.stage{display:flex;flex-direction:column;gap:10px}
+.canvas-box{position:relative;width:100%;aspect-ratio:1/1;max-width:100%;touch-action:none}
+canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:12px;cursor:grab}
+canvas.dragging{cursor:grabbing}
+
+.hint{font-size:14px;color:var(--dim);min-height:2.6em}
+.hint b{color:var(--fg);font-weight:600}
+
+.ctl{display:flex;flex-direction:column;gap:16px}
+.ctl h2{font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0}
+
+.slider label{display:flex;justify-content:space-between;align-items:baseline;font-size:14.5px;gap:10px;margin-bottom:5px}
+.slider label span{font-family:var(--font-m);font-size:13px;color:var(--dim)}
+input[type=range]{width:100%;accent-color:var(--accent);height:26px}
+input[type=range]:focus-visible{outline:2.5px solid var(--accent);outline-offset:3px}
+
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:9px}
+.cell{background:var(--sunk);border-radius:10px;padding:9px 11px;min-width:0;
+      display:flex;flex-direction:column;justify-content:space-between;gap:3px}
+.cell .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);font-weight:600}
+.cell .v{font-family:var(--font-m);font-weight:500;font-size:19px;font-variant-numeric:tabular-nums;
+         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{
+  font:inherit;font-weight:600;font-size:14.5px;cursor:pointer;
+  padding:10px 15px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel);color:var(--fg);
+}
+.btn:hover{border-color:var(--accent)}
+.btn:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1A1205}
+.btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.bandrow{display:flex;flex-direction:column;gap:9px}
+.bandrow h2 sup{text-transform:none}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{font:inherit;font-weight:600;font-size:13px;cursor:pointer;padding:7px 12px;border-radius:999px;
+      border:1px solid var(--line);background:var(--panel);color:var(--dim)}
+.chip:hover{border-color:var(--accent);color:var(--fg)}
+.chip:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#1A1205}
+.chip.all{border-style:dashed}
+
+.verdict{font-size:15px;line-height:1.5;min-height:3em}
+.sweeps{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14.5px}
+.sweeps-v{font-family:var(--font-m);font-size:13px;color:var(--dim)}
+.seg{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:10px}
+.segb{font:inherit;font-family:var(--font-m);font-size:14px;border:0;cursor:pointer;padding:6px 14px;border-radius:7px;background:transparent;color:var(--dim)}
+.segb[aria-pressed="true"]{background:var(--panel);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.segb:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+.verdict strong{font-family:var(--font-m);font-weight:500}
+
+.note{font-size:13.5px;color:var(--dim);line-height:1.55;border-top:1px solid var(--line);padding-top:12px;margin:0}
+footer{font-size:12.5px;color:var(--dim);display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between}
+.eyebrow{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:0 0 10px;text-align:center;max-width:none}
+sup{font-size:.68em;line-height:0;vertical-align:super;font-family:var(--font-m);font-weight:500}
+sup a{color:var(--accent);text-decoration:none;padding:0 1px}
+sup a:hover,sup a:focus-visible{text-decoration:underline}
+.refs h2{font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin:0 0 10px}
+.refs p{font-size:13.5px;color:var(--dim);line-height:1.55;margin:0 0 12px;max-width:80ch}
+.refs ol{margin:0;padding-left:1.6em;font-size:12.5px;color:var(--dim);line-height:1.5;display:grid;gap:5px}
+.refs li{overflow-wrap:anywhere}
+.refs li:target{color:var(--fg);background:var(--sunk);border-radius:6px}
+.refs a{color:var(--fg)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* tabs span the bench: first tab left, second right */
+.tabs{align-self:stretch;justify-content:space-between}
+
+/* language picker, top right of the header */
+header{position:relative}
+.langbar{position:absolute;top:0;right:0;display:flex;align-items:center;gap:6px}
+.langbar label{font-size:12.5px;color:var(--dim);font-weight:600}
+.langbar select{font:inherit;font-weight:600;font-size:14px;color:var(--fg);background:var(--panel);
+  border:1px solid var(--line);border-radius:9px;padding:6px 30px 6px 10px;cursor:pointer;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+.langbar select:hover{border-color:var(--accent)}
+.langbar select:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px}
+@media (max-width:640px){ .langbar{position:static;justify-content:flex-end;margin-bottom:8px} }
+@media (min-width:641px){ header .eyebrow{padding:8px 150px 0} }
+/* Indic scripts: no letter-spacing or case transforms, slightly more line height */
+html:not([lang="en"]) .eyebrow, html:not([lang="en"]) h2, html:not([lang="en"]) .cell .k{letter-spacing:0;text-transform:none}
+html:not([lang="en"]) .cell .k{font-size:12px}
+html:not([lang="en"]) body{line-height:1.6}
+html:not([lang="en"]) .cell .v{font-size:15px}
+@media (max-width:640px){ html:not([lang="en"]) .tabs button{font-size:13px;padding:8px 10px} }
+.tabs button:last-child{margin-left:auto}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="langbar"><label for="lang" data-i18n="lang_label">Language</label><select id="lang" aria-label="Language"></select></div>
+    <p class="eyebrow">Manotsava 2026 - EEG Team</p>
+    <h1 data-i18n="h1_2d">Where is it coming from?</h1>
+    <p data-i18n="intro_2d">Twenty sensors sit in a ring around the head, at the standard 10-10 positions.<sup><a href="#ref-1">1</a></sup>
+       Each one reads a voltage. From those twenty numbers, can you work out where inside the
+       head the activity started?</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Choose an activity" data-i18n-aria="aria_tabs">
+    <button id="tabA" role="tab" aria-selected="true" aria-controls="bench" data-i18n="tab_a">1 &nbsp;Move the source</button>
+    <button id="tabB" role="tab" aria-selected="false" aria-controls="bench" data-i18n="tab_b">2 &nbsp;Find the source</button>
+  </div>
+
+  <div class="bench" id="bench">
+    <div class="card stage">
+      <div class="canvas-box">
+        <canvas id="cv" data-i18n-aria="aria_cv2d" aria-label="Cross-section of a head, seen from above, showing twenty scalp sensors and a voltage map"></canvas>
+      </div>
+      <p class="hint" id="hint"></p>
+    </div>
+
+    <div class="card ctl">
+      <h2 id="ctlTitle">Controls</h2>
+
+      <div class="slider">
+        <label for="blur"><span style="font:inherit;color:inherit" data-i18n="blur_label">Skull blurring<sup><a href="#ref-4">4</a></sup></span> <span id="blurV">realistic</span></label>
+        <input type="range" id="blur" min="0" max="100" value="55">
+      </div>
+
+      <div class="slider" id="tiltRow">
+        <label for="tilt"><span style="font:inherit;color:inherit" data-i18n="tilt_label">Source direction</span> <span id="tiltV">facing out</span></label>
+        <input type="range" id="tilt" min="-90" max="90" value="0">
+      </div>
+
+      <div class="bandrow" id="bandRow">
+        <h2 data-i18n="rhythm_h">Brain rhythm<sup><a href="#ref-6">6</a></sup></h2>
+        <div class="chips" role="group" aria-label="Choose a brain rhythm" data-i18n-aria="aria_bands">
+          <button class="chip" data-band="delta" aria-pressed="false" data-i18n="chip_delta">Delta &lt;4 Hz</button>
+          <button class="chip" data-band="theta" aria-pressed="false" data-i18n="chip_theta">Theta 4&ndash;8 Hz</button>
+          <button class="chip" data-band="alpha" aria-pressed="true" data-i18n="chip_alpha">Alpha 8&ndash;13 Hz</button>
+          <button class="chip" data-band="beta"  aria-pressed="false" data-i18n="chip_beta">Beta 14&ndash;30 Hz</button>
+          <button class="chip" data-band="gamma" aria-pressed="false" data-i18n="chip_gamma">Gamma 30&ndash;80 Hz</button>
+          <button class="chip all" id="bBandsAll" aria-pressed="false" data-i18n="chip_allbands">All bands</button>
+          <button class="chip all" id="bBandsClear" aria-pressed="false" data-i18n="chip_clear">Clear</button>
+        </div>
+        <p class="hint" id="bandHint" style="margin:0"></p>
+      </div>
+
+      <div class="readout" id="readout"></div>
+
+      <div class="btns" id="btnsA">
+        <button class="btn" id="bDeep" data-i18n="btn_deep">Put it deep</button>
+        <button class="btn" id="bShallow" data-i18n="btn_shallow">Put it near the surface</button>
+      </div>
+
+      <div class="sweeps" id="sweepsRow" hidden>
+        <span class="sweeps-k" id="sweepsK" data-i18n="sweeps_label">Sweeps averaged</span>
+        <div class="seg" role="group" aria-labelledby="sweepsK">
+          <button class="segb" data-n="1" aria-pressed="false">1</button>
+          <button class="segb" data-n="10" aria-pressed="true">10</button>
+          <button class="segb" data-n="100" aria-pressed="false">100</button>
+        </div>
+        <span class="sweeps-v" id="sweepsV">noise 3.2 &micro;V per sensor</span>
+      </div>
+
+      <div class="btns" id="btnsB" hidden>
+        <button class="btn primary" id="bCheck" data-i18n="btn_check">Check my guess</button>
+        <button class="btn" id="bCloud" aria-pressed="false">Show every answer that fits</button>
+        <button class="btn" id="bNew" data-i18n="btn_new">New puzzle</button>
+      </div>
+
+      <p class="verdict" id="verdict"></p>
+      <p class="note" id="note"></p>
+    </div>
+  </div>
+
+  <section class="card refs" aria-labelledby="refsH">
+    <h2 id="refsH" data-i18n="refs_h">How this model works, and where it comes from</h2>
+    <p data-i18n="model_2d_1">This is a slice through the head at the level of the sensor ring, seen from above with the
+      nose at the top. The sensors are the twenty positions of the international 10-10 system that
+      run around the head through the forehead, temples and back, each 18&deg; apart.<sup><a href="#ref-1">1</a></sup>
+      The gold dot is a small patch of synchronised activity (a current dipole) in a single uniform
+      conductor, and its field reaches every sensor at once.<sup><a href="#ref-2">2</a></sup> The skull
+      is not modelled as a separate layer: its sideways smearing, which comes from bone conducting
+      electricity about fifteen times worse than brain and scalp,<sup><a href="#ref-4">4</a></sup> is
+      imitated by making the source act as if it sat a little deeper. Depths assume a scalp radius
+      of about 89&nbsp;mm. All of it is simplified for demonstration.</p>
+    <p data-i18n="model_2d_2"><b>Brain rhythms.</b> The five bands follow the clinical definitions.<sup><a href="#ref-6">6</a></sup>
+      Each button moves the source to where that rhythm is classically strongest and sets its size to a
+      typical scalp amplitude. This slice runs below the top of the head, so theta (just in front of the
+      crown) and beta (over the movement strip) are drawn at the nearest point in the slice. This page
+      shows one moment, not the rhythm in time &mdash; the 3D sensor net shows the waves. Real rhythms
+      come from many sources at once and vary between people; one source per band is a simplification.</p>
+    <p data-i18n="model_2d_3"><b>Every answer that fits.</b> Going backwards from scalp readings to a source has no unique
+      answer.<sup><a href="#ref-3">3</a>,<a href="#ref-5">5</a></sup> The shaded region shows every
+      outward-facing source that, with its strength adjusted, would differ from the real readings by
+      less than the background EEG left after averaging the chosen number of sweeps, as in an ERP:
+      roughly 10&nbsp;&micro;V per sensor in one sweep, falling with the square root of the number
+      averaged (3.2&nbsp;&micro;V for 10, 1&nbsp;&micro;V for 100). That assumes the
+      noise at each sensor is independent; real background EEG is shared between neighbouring
+      sensors, so in practice the region is larger.</p>
+    <ol>
+      <li id="ref-1">Oostenveld R, Praamstra P. The five percent electrode system for high-resolution EEG and ERP measurements. <i>Clin Neurophysiol</i> 2001;112(4):713&ndash;9. <a href="https://doi.org/10.1016/s1388-2457(00)00527-7">doi:10.1016/s1388-2457(00)00527-7</a></li>
+      <li id="ref-2">Nunez PL, Srinivasan R. <i>Electric Fields of the Brain: The Neurophysics of EEG</i>. 2nd ed. Oxford University Press; 2006.</li>
+      <li id="ref-3">Michel CM, Murray MM, Lantz G, Gonzalez S, Spinelli L, Grave de Peralta R. EEG source imaging. <i>Clin Neurophysiol</i> 2004;115(10):2195&ndash;222. <a href="https://doi.org/10.1016/j.clinph.2004.06.001">doi:10.1016/j.clinph.2004.06.001</a></li>
+      <li id="ref-4">Oostendorp TF, Delbeke J, Stegeman DF. The conductivity of the human skull: results of in vivo and in vitro measurements. <i>IEEE Trans Biomed Eng</i> 2000;47(11):1487&ndash;92. <a href="https://doi.org/10.1109/TBME.2000.880100">doi:10.1109/TBME.2000.880100</a></li>
+      <li id="ref-5">Grech R, et al. Review on solving the inverse problem in EEG source analysis. <i>J Neuroeng Rehabil</i> 2008;5:25. <a href="https://doi.org/10.1186/1743-0003-5-25">doi:10.1186/1743-0003-5-25</a></li>
+      <li id="ref-6">Kane N, Acharya J, Benickzy S, et al. A revised glossary of terms most commonly used by clinical electroencephalographers and updated proposal for the report format of the EEG findings. Revision 2017. <i>Clin Neurophysiol Pract</i> 2017;2:170&ndash;85. <a href="https://doi.org/10.1016/j.cnp.2017.07.002">doi:10.1016/j.cnp.2017.07.002</a> (band limits, typical locations and amplitudes)</li>
+      <li id="ref-7">Massimini M, Huber R, Ferrarelli F, Hill S, Tononi G. The sleep slow oscillation as a traveling wave. <i>J Neurosci</i> 2004;24(31):6862&ndash;70. <a href="https://doi.org/10.1523/JNEUROSCI.1318-04.2004">doi:10.1523/JNEUROSCI.1318-04.2004</a></li>
+      <li id="ref-8">Mitchell DJ, McNaughton N, Flanagan D, Kirk IJ. Frontal-midline theta from the perspective of hippocampal &ldquo;theta&rdquo;. <i>Prog Neurobiol</i> 2008;86(3):156&ndash;85. <a href="https://doi.org/10.1016/j.pneurobio.2008.09.005">doi:10.1016/j.pneurobio.2008.09.005</a></li>
+      <li id="ref-9">Klimesch W. EEG alpha and theta oscillations reflect cognitive and memory performance: a review and analysis. <i>Brain Res Brain Res Rev</i> 1999;29(2&ndash;3):169&ndash;95. <a href="https://doi.org/10.1016/s0165-0173(98)00056-3">doi:10.1016/s0165-0173(98)00056-3</a></li>
+      <li id="ref-10">Pfurtscheller G, Lopes da Silva FH. Event-related EEG/MEG synchronization and desynchronization: basic principles. <i>Clin Neurophysiol</i> 1999;110(11):1842&ndash;57. <a href="https://doi.org/10.1016/s1388-2457(99)00141-8">doi:10.1016/s1388-2457(99)00141-8</a></li>
+      <li id="ref-11">Tallon-Baudry C, Bertrand O. Oscillatory gamma activity in humans and its role in object representation. <i>Trends Cogn Sci</i> 1999;3(4):151&ndash;62. <a href="https://doi.org/10.1016/s1364-6613(99)01299-1">doi:10.1016/s1364-6613(99)01299-1</a></li>
+      <li id="ref-12">Yuval-Greenberg S, Tomer O, Keren AS, Nelken I, Deouell LY. Transient induced gamma-band response in EEG as a manifestation of miniature saccades. <i>Neuron</i> 2008;58(3):429&ndash;41. <a href="https://doi.org/10.1016/j.neuron.2008.03.027">doi:10.1016/j.neuron.2008.03.027</a></li>
+    </ol>
+  </section>
+
+  <footer>
+    <span>RNP Centre for Brain &amp; Mind &middot; Centre for Brain Mapping &middot; Department of Psychiatry &middot; NIMHANS</span>
+    <span data-i18n="footer_2d">A simplified two-dimensional model, built for demonstration.</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+var I18N = {"en":{"names_join":"{a} and {b}","lang_label":"Language","controls":"Controls","blur_label":"Skull blurring[[oostendorp]]","blur_none":"almost none","blur_some":"some","blur_real":"realistic","blur_heavy":"heavy","rhythm_h":"Brain rhythm[[kane]]","aria_bands":"Choose a brain rhythm","chip_delta":"Delta &lt;4 Hz","chip_theta":"Theta 4&ndash;8 Hz","chip_alpha":"Alpha 8&ndash;13 Hz","chip_beta":"Beta 14&ndash;30 Hz","chip_gamma":"Gamma 30&ndash;80 Hz","chip_allbands":"All bands","chip_clear":"Clear","name_delta":"Delta","name_theta":"Theta","name_alpha":"Alpha","name_beta":"Beta","name_gamma":"Gamma","mix":"<b>{names} together.</b> Every sensor reads a mixture of them.","band_delta":"<b>Delta, below 4 Hz.</b> Big, slow waves of deep sleep. Each one usually starts at the front of the head and sweeps backwards.[[massimini]] This model shows one fixed source, so it cannot show that travel.","band_theta":"<b>Theta, 4&ndash;8 Hz.</b> Seen on the midline just in front of the top of the head during concentration and problem solving.[[kane,mitchell]]","band_alpha":"<b>Alpha, 8&ndash;13 Hz.</b> Strongest over the back of the head when the eyes are closed and the mind is idle, usually under 50 &micro;V in adults. Opening the eyes blocks it.[[kane,klimesch]]","band_beta":"<b>Beta, 14&ndash;30 Hz.</b> Over the front and centre of the head, mostly under 30 &micro;V. Over the movement strip it drops when you move the opposite hand and rebounds after.[[kane,pfurt]]","band_gamma":"<b>Gamma, 30&ndash;80 Hz.</b> Linked to binding together what we see.[[tallon]] At the scalp it is tiny, and easily imitated by muscle and by the small, jumpy eye movements we make without noticing.[[yuval]]","band_theta_slice":"That spot is above this slice, so here it is drawn at the front.","band_beta_slice":"That strip is above this slice, so here it is drawn at the nearest point, on the left side.","k_depth":"Depth","k_peaksensor":"Peak sensor","k_peak":"Peak reading","k_half":"Above half peak","refs_h":"How this model works, and where it comes from","title_2d":"Where Is It Coming From?","h1_2d":"Where is it coming from?","intro_2d":"Twenty sensors sit in a ring around the head, at the standard 10-10 positions.[[oostenveld]] Each one reads a voltage. From those twenty numbers, can you work out where inside the head the activity started?","aria_tabs":"Choose an activity","tab_a":"1 &nbsp;Move the source","tab_b":"2 &nbsp;Find the source","aria_cv2d":"Cross-section of a head, seen from above, showing twenty scalp sensors and a voltage map","ctl_guess":"Your guess","tilt_label":"Source direction","tilt_out":"facing out","tilt_side":"sideways","tilt_tilted":"tilted","btn_deep":"Put it deep","btn_shallow":"Put it near the surface","sweeps_label":"Sweeps averaged","sweeps_noise":"noise {n} &micro;V per sensor","sweep_1":"1 sweep","sweep_n":"{n} sweeps","btn_check":"Check my guess","btn_cloud_show":"Show every answer that fits","btn_cloud_hide":"Hide the other answers","btn_new":"New puzzle","k_rhythm":"Rhythm","rhythm_none":"none","rhythm_n":"{n} bands","k_match":"Pattern match","k_yourdepth":"Your depth","k_distoff":"Distance off","hint_none_2d":"Nothing is active. <b>Pick a rhythm</b>, or drag inside the dashed line to start one.","hint_multi_2d":"{n} sources, one map. <b>Leave just one rhythm on</b> to move it.","hint_deep_2d":"<b>Deep.</b> The pattern is wide and faint &mdash; many sensors read something, none reads much.","hint_shallow_2d":"<b>Near the surface.</b> A tight, strong spot over one or two sensors.","hint_default_2d":"Drag the gold dot anywhere inside the dashed line. Watch the map and the numbers change.","hint_cross":"The cross is where it actually was.","hint_puzzle":"This map came from one spot inside the head. <b>Drag the gold dot</b> to where you think it was.","band_all_2d":"<b>All five at once.</b> The brain never runs one rhythm alone, and every sensor reads a mixture of all of them. The map shows one moment of that mixture.[[kane]]","band_none_2d":"<b>No brain rhythm.</b> Nothing inside the head is active, so every sensor reads zero. Pick a rhythm, or drag inside the dashed line to start one.","note_a":"The dashed circle is the brain; the band outside it is the skull and scalp. Bone conducts electricity about fifteen times worse than brain or scalp,[[oostendorp]] so it spreads the signal sideways before it reaches the sensors. That is what the blurring slider controls.","note_b":"Turn the blurring down and the puzzle gets easy. Turn it up to where a real skull sits and it gets hard &mdash; which is why EEG tells us <em>when</em> something happened far more precisely than <em>where</em>.[[michel]]","v_within":"Within <strong>{d} mm</strong>. As close as this method gets.","v_good":"<strong>{d} mm</strong> away &mdash; good. ","v_away":"<strong>{d} mm</strong> away. ","v_lookmatch":"But look at the match: <strong>r = {r}</strong>. With its strength adjusted, your spot gives readings that differ from the real ones by less than the background EEG left after averaging {sw}. The sensors cannot tell them apart.","v_patternmatch":"Pattern match <strong>r = {r}</strong>.","v_cloud":"Every shaded spot, with its strength adjusted, gives readings that differ from the real ones by less than the background EEG left after averaging {sw}. The data cannot choose between them. Average more sweeps and watch it shrink; turn the blurring up and watch it grow.","model_2d_1":"This is a slice through the head at the level of the sensor ring, seen from above with the nose at the top. The sensors are the twenty positions of the international 10-10 system that run around the head through the forehead, temples and back, each 18&deg; apart.[[oostenveld]] The gold dot is a small patch of synchronised activity (a current dipole) in a single uniform conductor, and its field reaches every sensor at once.[[nunez]] The skull is not modelled as a separate layer: its sideways smearing, which comes from bone conducting electricity about fifteen times worse than brain and scalp,[[oostendorp]] is imitated by making the source act as if it sat a little deeper. Depths assume a scalp radius of about 89&nbsp;mm. All of it is simplified for demonstration.","model_2d_2":"<b>Brain rhythms.</b> The five bands follow the clinical definitions.[[kane]] Each button moves the source to where that rhythm is classically strongest and sets its size to a typical scalp amplitude. This slice runs below the top of the head, so theta (just in front of the crown) and beta (over the movement strip) are drawn at the nearest point in the slice. This page shows one moment, not the rhythm in time &mdash; the 3D sensor net shows the waves. Real rhythms come from many sources at once and vary between people; one source per band is a simplification.","model_2d_3":"<b>Every answer that fits.</b> Going backwards from scalp readings to a source has no unique answer.[[michel,grech]] The shaded region shows every outward-facing source that, with its strength adjusted, would differ from the real readings by less than the background EEG left after averaging the chosen number of sweeps, as in an ERP: roughly 10&nbsp;&micro;V per sensor in one sweep, falling with the square root of the number averaged (3.2&nbsp;&micro;V for 10, 1&nbsp;&micro;V for 100). That assumes the noise at each sensor is independent; real background EEG is shared between neighbouring sensors, so in practice the region is larger.","footer_2d":"A simplified two-dimensional model, built for demonstration."},"kn":{"names_join":"{a} ಮತ್ತು {b}","lang_label":"ಭಾಷೆ","controls":"ನಿಯಂತ್ರಣಗಳು","blur_label":"ತಲೆಬುರುಡೆಯ ಮಸುಕು[[oostendorp]]","blur_none":"ಬಹುತೇಕ ಇಲ್ಲ","blur_some":"ಸ್ವಲ್ಪ","blur_real":"ವಾಸ್ತವಿಕ","blur_heavy":"ಹೆಚ್ಚು","rhythm_h":"ಮೆದುಳಿನ ಲಯ[[kane]]","aria_bands":"ಮೆದುಳಿನ ಲಯವನ್ನು ಆರಿಸಿ","chip_delta":"ಡೆಲ್ಟಾ &lt;4 Hz","chip_theta":"ಥೀಟಾ 4&ndash;8 Hz","chip_alpha":"ಆಲ್ಫಾ 8&ndash;13 Hz","chip_beta":"ಬೀಟಾ 14&ndash;30 Hz","chip_gamma":"ಗಾಮಾ 30&ndash;80 Hz","chip_allbands":"ಎಲ್ಲಾ ಲಯಗಳು","chip_clear":"ತೆರವುಗೊಳಿಸಿ","name_delta":"ಡೆಲ್ಟಾ","name_theta":"ಥೀಟಾ","name_alpha":"ಆಲ್ಫಾ","name_beta":"ಬೀಟಾ","name_gamma":"ಗಾಮಾ","mix":"<b>{names} ಒಟ್ಟಿಗೆ.</b> ಪ್ರತಿ ಸಂವೇದಕವೂ ಅವುಗಳ ಮಿಶ್ರಣವನ್ನು ಓದುತ್ತದೆ.","band_delta":"<b>ಡೆಲ್ಟಾ, 4 Hz ಗಿಂತ ಕಡಿಮೆ.</b> ಗಾಢ ನಿದ್ರೆಯ ದೊಡ್ಡ, ನಿಧಾನ ಅಲೆಗಳು. ಪ್ರತಿಯೊಂದು ಅಲೆ ಸಾಮಾನ್ಯವಾಗಿ ತಲೆಯ ಮುಂಭಾಗದಲ್ಲಿ ಹುಟ್ಟಿ ಹಿಂದಕ್ಕೆ ಸಾಗುತ್ತದೆ.[[massimini]] ಈ ಮಾದರಿ ಒಂದೇ ಸ್ಥಿರ ಮೂಲವನ್ನು ತೋರಿಸುವುದರಿಂದ ಆ ಚಲನೆಯನ್ನು ತೋರಿಸಲಾರದು.","band_theta":"<b>ಥೀಟಾ, 4&ndash;8 Hz.</b> ಏಕಾಗ್ರತೆ ಮತ್ತು ಸಮಸ್ಯೆ ಬಿಡಿಸುವಾಗ, ತಲೆಯ ನೆತ್ತಿಯ ಸ್ವಲ್ಪ ಮುಂದೆ ಮಧ್ಯರೇಖೆಯಲ್ಲಿ ಕಾಣುತ್ತದೆ.[[kane,mitchell]]","band_alpha":"<b>ಆಲ್ಫಾ, 8&ndash;13 Hz.</b> ಕಣ್ಣು ಮುಚ್ಚಿ ಮನಸ್ಸು ವಿಶ್ರಾಂತಿಯಲ್ಲಿರುವಾಗ ತಲೆಯ ಹಿಂಭಾಗದಲ್ಲಿ ಅತ್ಯಂತ ಬಲವಾಗಿರುತ್ತದೆ; ವಯಸ್ಕರಲ್ಲಿ ಸಾಮಾನ್ಯವಾಗಿ 50 &micro;V ಗಿಂತ ಕಡಿಮೆ. ಕಣ್ಣು ತೆರೆದರೆ ಅದು ತಡೆಯಲ್ಪಡುತ್ತದೆ.[[kane,klimesch]]","band_beta":"<b>ಬೀಟಾ, 14&ndash;30 Hz.</b> ತಲೆಯ ಮುಂಭಾಗ ಮತ್ತು ಮಧ್ಯಭಾಗದಲ್ಲಿ, ಹೆಚ್ಚಾಗಿ 30 &micro;V ಗಿಂತ ಕಡಿಮೆ. ಚಲನೆಯ ಪಟ್ಟಿಯ ಮೇಲೆ, ಎದುರು ಬದಿಯ ಕೈಯನ್ನು ಚಲಿಸಿದಾಗ ಅದು ಕುಸಿಯುತ್ತದೆ ಮತ್ತು ನಂತರ ಮತ್ತೆ ಏರುತ್ತದೆ.[[kane,pfurt]]","band_gamma":"<b>ಗಾಮಾ, 30&ndash;80 Hz.</b> ನಾವು ನೋಡುವುದನ್ನು ಒಂದಾಗಿ ಜೋಡಿಸುವುದಕ್ಕೆ ಸಂಬಂಧಿಸಿದೆ.[[tallon]] ನೆತ್ತಿಯ ಮೇಲೆ ಇದು ತುಂಬಾ ಚಿಕ್ಕದು, ಮತ್ತು ಸ್ನಾಯುಗಳು ಹಾಗೂ ನಮಗರಿವಿಲ್ಲದೆ ಆಗುವ ಸಣ್ಣ, ಚಿಮ್ಮುವ ಕಣ್ಣಿನ ಚಲನೆಗಳು ಇದನ್ನು ಸುಲಭವಾಗಿ ಅನುಕರಿಸುತ್ತವೆ.[[yuval]]","band_theta_slice":"ಆ ಸ್ಥಳ ಈ ಅಡ್ಡಛೇದದ ಮೇಲಿದೆ, ಆದ್ದರಿಂದ ಇಲ್ಲಿ ಅದನ್ನು ಮುಂಭಾಗದಲ್ಲಿ ತೋರಿಸಲಾಗಿದೆ.","band_beta_slice":"ಆ ಪಟ್ಟಿ ಈ ಅಡ್ಡಛೇದದ ಮೇಲಿದೆ, ಆದ್ದರಿಂದ ಇಲ್ಲಿ ಅದನ್ನು ಹತ್ತಿರದ ಬಿಂದುವಿನಲ್ಲಿ, ಎಡಬದಿಯಲ್ಲಿ ತೋರಿಸಲಾಗಿದೆ.","k_depth":"ಆಳ","k_peaksensor":"ಗರಿಷ್ಠ ಸಂವೇದಕ","k_peak":"ಗರಿಷ್ಠ ಓದು","k_half":"ಅರ್ಧ ಗರಿಷ್ಠಕ್ಕಿಂತ ಮೇಲೆ","refs_h":"ಈ ಮಾದರಿ ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ, ಮತ್ತು ಆಧಾರಗಳು","title_2d":"ಇದು ಎಲ್ಲಿಂದ ಬರುತ್ತಿದೆ?","h1_2d":"ಇದು ಎಲ್ಲಿಂದ ಬರುತ್ತಿದೆ?","intro_2d":"ಇಪ್ಪತ್ತು ಸಂವೇದಕಗಳು ಪ್ರಮಾಣಿತ 10-10 ಸ್ಥಾನಗಳಲ್ಲಿ ತಲೆಯ ಸುತ್ತ ಉಂಗುರದಲ್ಲಿವೆ.[[oostenveld]] ಪ್ರತಿಯೊಂದೂ ಒಂದು ವೋಲ್ಟೇಜ್ ಓದುತ್ತದೆ. ಆ ಇಪ್ಪತ್ತು ಸಂಖ್ಯೆಗಳಿಂದ, ತಲೆಯೊಳಗೆ ಚಟುವಟಿಕೆ ಎಲ್ಲಿ ಆರಂಭವಾಯಿತು ಎಂದು ನೀವು ಕಂಡುಹಿಡಿಯಬಲ್ಲಿರಾ?","aria_tabs":"ಚಟುವಟಿಕೆಯನ್ನು ಆರಿಸಿ","tab_a":"1 &nbsp;ಮೂಲವನ್ನು ಸರಿಸಿ","tab_b":"2 &nbsp;ಮೂಲವನ್ನು ಹುಡುಕಿ","aria_cv2d":"ಮೇಲಿನಿಂದ ಕಂಡ ತಲೆಯ ಅಡ್ಡಛೇದ: ಇಪ್ಪತ್ತು ನೆತ್ತಿ ಸಂವೇದಕಗಳು ಮತ್ತು ವೋಲ್ಟೇಜ್ ನಕ್ಷೆ","ctl_guess":"ನಿಮ್ಮ ಊಹೆ","tilt_label":"ಮೂಲದ ದಿಕ್ಕು","tilt_out":"ಹೊರಮುಖ","tilt_side":"ಪಕ್ಕಕ್ಕೆ","tilt_tilted":"ಓರೆ","btn_deep":"ಆಳದಲ್ಲಿ ಇಡಿ","btn_shallow":"ಮೇಲ್ಮೈ ಹತ್ತಿರ ಇಡಿ","sweeps_label":"ಸರಾಸರಿ ಮಾಡಿದ ಸ್ವೀಪ್‌ಗಳು","sweeps_noise":"ಪ್ರತಿ ಸಂವೇದಕಕ್ಕೆ ಶಬ್ದ {n} &micro;V","sweep_1":"1 ಸ್ವೀಪ್","sweep_n":"{n} ಸ್ವೀಪ್‌ಗಳು","btn_check":"ನನ್ನ ಊಹೆ ಪರಿಶೀಲಿಸಿ","btn_cloud_show":"ಹೊಂದುವ ಎಲ್ಲಾ ಉತ್ತರಗಳನ್ನು ತೋರಿಸಿ","btn_cloud_hide":"ಇತರ ಉತ್ತರಗಳನ್ನು ಮರೆಮಾಡಿ","btn_new":"ಹೊಸ ಒಗಟು","k_rhythm":"ಲಯ","rhythm_none":"ಇಲ್ಲ","rhythm_n":"{n} ಲಯಗಳು","k_match":"ಮಾದರಿ ಹೊಂದಾಣಿಕೆ","k_yourdepth":"ನಿಮ್ಮ ಆಳ","k_distoff":"ಎಷ್ಟು ದೂರ ತಪ್ಪಿದೆ","hint_none_2d":"ಯಾವುದೂ ಸಕ್ರಿಯವಾಗಿಲ್ಲ. <b>ಒಂದು ಲಯ ಆರಿಸಿ</b>, ಅಥವಾ ಆರಂಭಿಸಲು ಚುಕ್ಕೆಗೆರೆಯೊಳಗೆ ಎಳೆಯಿರಿ.","hint_multi_2d":"{n} ಮೂಲಗಳು, ಒಂದು ನಕ್ಷೆ. ಸರಿಸಲು <b>ಒಂದೇ ಲಯವನ್ನು ಆನ್ ಆಗಿ ಬಿಡಿ</b>.","hint_deep_2d":"<b>ಆಳದಲ್ಲಿ.</b> ಮಾದರಿ ಅಗಲ ಮತ್ತು ಮಂದ &mdash; ಅನೇಕ ಸಂವೇದಕಗಳು ಏನನ್ನಾದರೂ ಓದುತ್ತವೆ, ಯಾವುದೂ ಹೆಚ್ಚು ಓದುವುದಿಲ್ಲ.","hint_shallow_2d":"<b>ಮೇಲ್ಮೈ ಹತ್ತಿರ.</b> ಒಂದೆರಡು ಸಂವೇದಕಗಳ ಮೇಲೆ ಬಿಗಿಯಾದ, ಬಲವಾದ ಸ್ಥಳ.","hint_default_2d":"ಚಿನ್ನದ ಚುಕ್ಕೆಯನ್ನು ಚುಕ್ಕೆಗೆರೆಯೊಳಗೆ ಎಲ್ಲಿಗಾದರೂ ಎಳೆಯಿರಿ. ನಕ್ಷೆ ಮತ್ತು ಸಂಖ್ಯೆಗಳು ಬದಲಾಗುವುದನ್ನು ನೋಡಿ.","hint_cross":"ಗುಣಿತ ಚಿಹ್ನೆ ಅದು ನಿಜವಾಗಿ ಇದ್ದ ಸ್ಥಳ.","hint_puzzle":"ಈ ನಕ್ಷೆ ತಲೆಯೊಳಗಿನ ಒಂದು ಸ್ಥಳದಿಂದ ಬಂದದ್ದು. ಅದು ಎಲ್ಲಿತ್ತು ಎಂದು ನೀವು ಭಾವಿಸುತ್ತೀರೋ ಅಲ್ಲಿಗೆ <b>ಚಿನ್ನದ ಚುಕ್ಕೆಯನ್ನು ಎಳೆಯಿರಿ</b>.","band_all_2d":"<b>ಐದೂ ಒಮ್ಮೆಗೇ.</b> ಮೆದುಳು ಎಂದಿಗೂ ಒಂದೇ ಲಯವನ್ನು ಮಾತ್ರ ನಡೆಸುವುದಿಲ್ಲ, ಮತ್ತು ಪ್ರತಿ ಸಂವೇದಕವೂ ಎಲ್ಲದರ ಮಿಶ್ರಣವನ್ನು ಓದುತ್ತದೆ. ನಕ್ಷೆ ಆ ಮಿಶ್ರಣದ ಒಂದು ಕ್ಷಣವನ್ನು ತೋರಿಸುತ್ತದೆ.[[kane]]","band_none_2d":"<b>ಮೆದುಳಿನ ಲಯವಿಲ್ಲ.</b> ತಲೆಯೊಳಗೆ ಏನೂ ಸಕ್ರಿಯವಾಗಿಲ್ಲ, ಆದ್ದರಿಂದ ಪ್ರತಿ ಸಂವೇದಕವೂ ಶೂನ್ಯ ಓದುತ್ತದೆ. ಒಂದು ಲಯ ಆರಿಸಿ, ಅಥವಾ ಆರಂಭಿಸಲು ಚುಕ್ಕೆಗೆರೆಯೊಳಗೆ ಎಳೆಯಿರಿ.","note_a":"ಚುಕ್ಕೆಗೆರೆಯ ವೃತ್ತ ಮೆದುಳು; ಅದರ ಹೊರಗಿನ ಪಟ್ಟಿ ತಲೆಬುರುಡೆ ಮತ್ತು ನೆತ್ತಿ. ಮೂಳೆ ಮೆದುಳು ಅಥವಾ ನೆತ್ತಿಗಿಂತ ಸುಮಾರು ಹದಿನೈದು ಪಟ್ಟು ಕಡಿಮೆ ವಿದ್ಯುತ್ ಹರಿಸುತ್ತದೆ,[[oostendorp]] ಆದ್ದರಿಂದ ಸಂಕೇತ ಸಂವೇದಕಗಳನ್ನು ತಲುಪುವ ಮೊದಲು ಪಕ್ಕಕ್ಕೆ ಹರಡುತ್ತದೆ. ಮಸುಕು ಸ್ಲೈಡರ್ ನಿಯಂತ್ರಿಸುವುದು ಅದನ್ನೇ.","note_b":"ಮಸುಕು ಕಡಿಮೆ ಮಾಡಿದರೆ ಒಗಟು ಸುಲಭ. ನಿಜವಾದ ತಲೆಬುರುಡೆಯ ಮಟ್ಟಕ್ಕೆ ಹೆಚ್ಚಿಸಿದರೆ ಕಷ್ಟ &mdash; ಅದಕ್ಕಾಗಿಯೇ EEG ಏನಾದರೂ <em>ಎಲ್ಲಿ</em> ಆಯಿತು ಎನ್ನುವುದಕ್ಕಿಂತ <em>ಯಾವಾಗ</em> ಆಯಿತು ಎಂಬುದನ್ನು ಹೆಚ್ಚು ನಿಖರವಾಗಿ ಹೇಳುತ್ತದೆ.[[michel]]","v_within":"<strong>{d} mm</strong> ಒಳಗೆ. ಈ ವಿಧಾನ ತಲುಪಬಹುದಾದಷ್ಟು ಹತ್ತಿರ.","v_good":"<strong>{d} mm</strong> ದೂರ &mdash; ಚೆನ್ನಾಗಿದೆ. ","v_away":"<strong>{d} mm</strong> ದೂರ. ","v_lookmatch":"ಆದರೆ ಹೊಂದಾಣಿಕೆ ನೋಡಿ: <strong>r = {r}</strong>. ಬಲವನ್ನು ಹೊಂದಿಸಿದರೆ, ನಿಮ್ಮ ಸ್ಥಳದ ಓದುಗಳು ನಿಜವಾದವುಗಳಿಂದ {sw} ಸರಾಸರಿ ಮಾಡಿದ ನಂತರ ಉಳಿಯುವ ಹಿನ್ನೆಲೆ EEG ಗಿಂತ ಕಡಿಮೆ ಭಿನ್ನವಾಗಿವೆ. ಸಂವೇದಕಗಳು ಅವನ್ನು ಬೇರ್ಪಡಿಸಲಾರವು.","v_patternmatch":"ಮಾದರಿ ಹೊಂದಾಣಿಕೆ <strong>r = {r}</strong>.","v_cloud":"ಪ್ರತಿ ಛಾಯೆಯ ಸ್ಥಳವೂ, ಬಲವನ್ನು ಹೊಂದಿಸಿದರೆ, {sw} ಸರಾಸರಿ ಮಾಡಿದ ನಂತರ ಉಳಿಯುವ ಹಿನ್ನೆಲೆ EEG ಗಿಂತ ಕಡಿಮೆ ಭಿನ್ನವಾದ ಓದುಗಳನ್ನು ಕೊಡುತ್ತದೆ. ದತ್ತಾಂಶ ಅವುಗಳ ನಡುವೆ ಆರಿಸಲಾರದು. ಹೆಚ್ಚು ಸ್ವೀಪ್‌ಗಳನ್ನು ಸರಾಸರಿ ಮಾಡಿದರೆ ಇದು ಕುಗ್ಗುತ್ತದೆ; ಮಸುಕು ಹೆಚ್ಚಿಸಿದರೆ ಬೆಳೆಯುತ್ತದೆ.","model_2d_1":"ಇದು ಸಂವೇದಕ ಉಂಗುರದ ಮಟ್ಟದಲ್ಲಿ ತಲೆಯ ಅಡ್ಡಛೇದ, ಮೇಲಿನಿಂದ ನೋಡಿದಂತೆ, ಮೂಗು ಮೇಲ್ಭಾಗದಲ್ಲಿ. ಸಂವೇದಕಗಳು ಅಂತರರಾಷ್ಟ್ರೀಯ 10-10 ವ್ಯವಸ್ಥೆಯ ಇಪ್ಪತ್ತು ಸ್ಥಾನಗಳು; ಹಣೆ, ಕಣತಲೆ ಮತ್ತು ಹಿಂಭಾಗದ ಮೂಲಕ ತಲೆಯ ಸುತ್ತ, ಪ್ರತಿಯೊಂದೂ 18&deg; ಅಂತರದಲ್ಲಿ.[[oostenveld]] ಚಿನ್ನದ ಚುಕ್ಕೆ ಒಂದು ಏಕರೂಪದ ವಾಹಕದೊಳಗಿನ ಸಮಕಾಲಿಕ ಚಟುವಟಿಕೆಯ ಸಣ್ಣ ತುಣುಕು (ಒಂದು ವಿದ್ಯುತ್ ದ್ವಿಧ್ರುವ), ಮತ್ತು ಅದರ ಕ್ಷೇತ್ರ ಎಲ್ಲಾ ಸಂವೇದಕಗಳನ್ನು ಒಮ್ಮೆಗೇ ತಲುಪುತ್ತದೆ.[[nunez]] ತಲೆಬುರುಡೆಯನ್ನು ಪ್ರತ್ಯೇಕ ಪದರವಾಗಿ ಮಾದರಿ ಮಾಡಿಲ್ಲ: ಮೂಳೆ ಮೆದುಳು ಮತ್ತು ನೆತ್ತಿಗಿಂತ ಸುಮಾರು ಹದಿನೈದು ಪಟ್ಟು ಕಡಿಮೆ ವಿದ್ಯುತ್ ಹರಿಸುವುದರಿಂದ ಆಗುವ ಪಕ್ಕದ ಹರಡುವಿಕೆಯನ್ನು,[[oostendorp]] ಮೂಲ ಸ್ವಲ್ಪ ಆಳದಲ್ಲಿದ್ದಂತೆ ವರ್ತಿಸುವಂತೆ ಮಾಡಿ ಅನುಕರಿಸಲಾಗಿದೆ. ಆಳಗಳು ಸುಮಾರು 89&nbsp;mm ನೆತ್ತಿ ತ್ರಿಜ್ಯವನ್ನು ಊಹಿಸುತ್ತವೆ. ಇದೆಲ್ಲವೂ ಪ್ರದರ್ಶನಕ್ಕಾಗಿ ಸರಳೀಕರಿಸಲಾಗಿದೆ.","model_2d_2":"<b>ಮೆದುಳಿನ ಲಯಗಳು.</b> ಐದು ಪಟ್ಟಿಗಳು ವೈದ್ಯಕೀಯ ವ್ಯಾಖ್ಯೆಗಳನ್ನು ಅನುಸರಿಸುತ್ತವೆ.[[kane]] ಪ್ರತಿ ಬಟನ್ ಮೂಲವನ್ನು ಆ ಲಯ ಸಾಂಪ್ರದಾಯಿಕವಾಗಿ ಅತ್ಯಂತ ಬಲವಾಗಿರುವ ಸ್ಥಳಕ್ಕೆ ಸರಿಸಿ, ಅದರ ಗಾತ್ರವನ್ನು ಸಾಮಾನ್ಯ ನೆತ್ತಿ ವೈಶಾಲ್ಯಕ್ಕೆ ಹೊಂದಿಸುತ್ತದೆ. ಈ ಅಡ್ಡಛೇದ ತಲೆಯ ನೆತ್ತಿಯ ಕೆಳಗೆ ಸಾಗುತ್ತದೆ, ಆದ್ದರಿಂದ ಥೀಟಾ (ನೆತ್ತಿಯ ಸ್ವಲ್ಪ ಮುಂದೆ) ಮತ್ತು ಬೀಟಾ (ಚಲನೆಯ ಪಟ್ಟಿಯ ಮೇಲೆ) ಅನ್ನು ಅಡ್ಡಛೇದದ ಹತ್ತಿರದ ಬಿಂದುವಿನಲ್ಲಿ ತೋರಿಸಲಾಗಿದೆ. ಈ ಪುಟ ಒಂದು ಕ್ಷಣವನ್ನು ತೋರಿಸುತ್ತದೆ, ಕಾಲದಲ್ಲಿನ ಲಯವನ್ನಲ್ಲ &mdash; 3D ಸಂವೇದಕ ಜಾಲ ಅಲೆಗಳನ್ನು ತೋರಿಸುತ್ತದೆ. ನಿಜವಾದ ಲಯಗಳು ಒಮ್ಮೆಗೇ ಅನೇಕ ಮೂಲಗಳಿಂದ ಬರುತ್ತವೆ ಮತ್ತು ಜನರ ನಡುವೆ ಭಿನ್ನವಾಗಿರುತ್ತವೆ; ಪ್ರತಿ ಪಟ್ಟಿಗೆ ಒಂದೇ ಮೂಲ ಎಂಬುದು ಸರಳೀಕರಣ.","model_2d_3":"<b>ಹೊಂದುವ ಎಲ್ಲಾ ಉತ್ತರಗಳು.</b> ನೆತ್ತಿಯ ಓದುಗಳಿಂದ ಹಿಮ್ಮುಖವಾಗಿ ಮೂಲ ಕಂಡುಹಿಡಿಯಲು ಒಂದೇ ಉತ್ತರವಿಲ್ಲ.[[michel,grech]] ಛಾಯೆಯ ಪ್ರದೇಶ, ಬಲವನ್ನು ಹೊಂದಿಸಿದರೆ, ಆರಿಸಿದ ಸಂಖ್ಯೆಯ ಸ್ವೀಪ್‌ಗಳನ್ನು ಸರಾಸರಿ ಮಾಡಿದ ನಂತರ ಉಳಿಯುವ ಹಿನ್ನೆಲೆ EEG ಗಿಂತ ಕಡಿಮೆ ಭಿನ್ನವಾಗುವ ಎಲ್ಲಾ ಹೊರಮುಖ ಮೂಲಗಳನ್ನು ತೋರಿಸುತ್ತದೆ, ERP ಯಲ್ಲಿರುವಂತೆ: ಒಂದು ಸ್ವೀಪ್‌ನಲ್ಲಿ ಪ್ರತಿ ಸಂವೇದಕಕ್ಕೆ ಸುಮಾರು 10&nbsp;&micro;V, ಸರಾಸರಿ ಮಾಡಿದ ಸಂಖ್ಯೆಯ ವರ್ಗಮೂಲದೊಂದಿಗೆ ಇಳಿಯುತ್ತದೆ (10 ಕ್ಕೆ 3.2&nbsp;&micro;V, 100 ಕ್ಕೆ 1&nbsp;&micro;V). ಇದು ಪ್ರತಿ ಸಂವೇದಕದ ಶಬ್ದ ಸ್ವತಂತ್ರ ಎಂದು ಊಹಿಸುತ್ತದೆ; ನಿಜವಾದ ಹಿನ್ನೆಲೆ EEG ನೆರೆಯ ಸಂವೇದಕಗಳ ನಡುವೆ ಹಂಚಿಕೊಳ್ಳಲ್ಪಡುತ್ತದೆ, ಆದ್ದರಿಂದ ವಾಸ್ತವದಲ್ಲಿ ಪ್ರದೇಶ ದೊಡ್ಡದು.","footer_2d":"ಪ್ರದರ್ಶನಕ್ಕಾಗಿ ನಿರ್ಮಿಸಿದ, ಸರಳೀಕೃತ ಎರಡು ಆಯಾಮದ ಮಾದರಿ."},"ta":{"names_join":"{a} மற்றும் {b}","lang_label":"மொழி","controls":"கட்டுப்பாடுகள்","blur_label":"மண்டையோட்டின் மங்கல்[[oostendorp]]","blur_none":"கிட்டத்தட்ட இல்லை","blur_some":"சிறிது","blur_real":"இயல்பானது","blur_heavy":"அதிகம்","rhythm_h":"மூளை அலை[[kane]]","aria_bands":"மூளை அலையைத் தேர்ந்தெடுக்கவும்","chip_delta":"டெல்டா &lt;4 Hz","chip_theta":"தீட்டா 4&ndash;8 Hz","chip_alpha":"ஆல்ஃபா 8&ndash;13 Hz","chip_beta":"பீட்டா 14&ndash;30 Hz","chip_gamma":"காமா 30&ndash;80 Hz","chip_allbands":"அனைத்து அலைகளும்","chip_clear":"அழி","name_delta":"டெல்டா","name_theta":"தீட்டா","name_alpha":"ஆல்ஃபா","name_beta":"பீட்டா","name_gamma":"காமா","mix":"<b>{names} ஒன்றாக.</b> ஒவ்வொரு உணரியும் அவற்றின் கலவையைப் படிக்கிறது.","band_delta":"<b>டெல்டா, 4 Hz க்குக் கீழ்.</b> ஆழ்ந்த உறக்கத்தின் பெரிய, மெதுவான அலைகள். ஒவ்வொன்றும் பொதுவாகத் தலையின் முன்பகுதியில் தொடங்கிப் பின்னோக்கிப் பரவுகிறது.[[massimini]] இந்த மாதிரி ஒரே நிலையான மூலத்தைக் காட்டுவதால் அந்தப் பயணத்தைக் காட்ட இயலாது.","band_theta":"<b>தீட்டா, 4&ndash;8 Hz.</b> கவனம் செலுத்தும்போதும் சிக்கல்களைத் தீர்க்கும்போதும், உச்சந்தலைக்குச் சற்று முன்னால் நடுக்கோட்டில் காணப்படுகிறது.[[kane,mitchell]]","band_alpha":"<b>ஆல்ஃபா, 8&ndash;13 Hz.</b> கண்களை மூடி மனம் ஓய்வாக இருக்கும்போது தலையின் பின்பகுதியில் மிக வலுவாக இருக்கும்; பெரியவர்களில் பொதுவாக 50 &micro;V க்குக் குறைவு. கண்களைத் திறந்தால் அது தடைபடும்.[[kane,klimesch]]","band_beta":"<b>பீட்டா, 14&ndash;30 Hz.</b> தலையின் முன் மற்றும் நடுப்பகுதியில், பெரும்பாலும் 30 &micro;V க்குக் குறைவு. இயக்கப் பட்டையின் மேல், எதிர்ப்பக்கக் கையை அசைக்கும்போது இது குறைந்து பின்னர் மீண்டும் உயர்கிறது.[[kane,pfurt]]","band_gamma":"<b>காமா, 30&ndash;80 Hz.</b> நாம் பார்ப்பதை ஒன்றாக இணைப்பதுடன் தொடர்புடையது.[[tallon]] உச்சந்தலையில் இது மிகச் சிறியது; தசைகளும், நாம் அறியாமல் செய்யும் சிறிய துள்ளும் கண் அசைவுகளும் இதை எளிதில் போலியாக உருவாக்கும்.[[yuval]]","band_theta_slice":"அந்த இடம் இந்தக் குறுக்குவெட்டுக்கு மேலே உள்ளது, எனவே இங்கே அது முன்பகுதியில் காட்டப்படுகிறது.","band_beta_slice":"அந்தப் பட்டை இந்தக் குறுக்குவெட்டுக்கு மேலே உள்ளது, எனவே இங்கே அது அருகிலுள்ள புள்ளியில், இடப்பக்கத்தில் காட்டப்படுகிறது.","k_depth":"ஆழம்","k_peaksensor":"உச்ச உணரி","k_peak":"உச்ச அளவீடு","k_half":"பாதி உச்சத்துக்கு மேல்","refs_h":"இந்த மாதிரி எப்படி இயங்குகிறது, அதன் ஆதாரங்கள்","title_2d":"இது எங்கிருந்து வருகிறது?","h1_2d":"இது எங்கிருந்து வருகிறது?","intro_2d":"இருபது உணரிகள் நிலையான 10-10 நிலைகளில் தலையைச் சுற்றி ஒரு வளையத்தில் உள்ளன.[[oostenveld]] ஒவ்வொன்றும் ஒரு மின்னழுத்தத்தைப் படிக்கிறது. அந்த இருபது எண்களிலிருந்து, தலைக்குள் செயல்பாடு எங்கே தொடங்கியது என்று கண்டுபிடிக்க முடியுமா?","aria_tabs":"செயல்பாட்டைத் தேர்ந்தெடுக்கவும்","tab_a":"1 &nbsp;மூலத்தை நகர்த்து","tab_b":"2 &nbsp;மூலத்தைக் கண்டுபிடி","aria_cv2d":"மேலிருந்து பார்த்த தலையின் குறுக்குவெட்டு: இருபது உச்சந்தலை உணரிகளும் மின்னழுத்த வரைபடமும்","ctl_guess":"உங்கள் ஊகம்","tilt_label":"மூலத்தின் திசை","tilt_out":"வெளிநோக்கி","tilt_side":"பக்கவாட்டில்","tilt_tilted":"சாய்வாக","btn_deep":"ஆழத்தில் வை","btn_shallow":"மேற்பரப்புக்கு அருகில் வை","sweeps_label":"சராசரி எடுத்த ஸ்வீப்கள்","sweeps_noise":"ஒவ்வொரு உணரிக்கும் இரைச்சல் {n} &micro;V","sweep_1":"1 ஸ்வீப்","sweep_n":"{n} ஸ்வீப்கள்","btn_check":"என் ஊகத்தைச் சரிபார்","btn_cloud_show":"பொருந்தும் அனைத்து விடைகளையும் காட்டு","btn_cloud_hide":"மற்ற விடைகளை மறை","btn_new":"புதிய புதிர்","k_rhythm":"அலை","rhythm_none":"இல்லை","rhythm_n":"{n} அலைகள்","k_match":"வடிவப் பொருத்தம்","k_yourdepth":"உங்கள் ஆழம்","k_distoff":"தவறிய தூரம்","hint_none_2d":"எதுவும் இயக்கத்தில் இல்லை. <b>ஒரு அலையைத் தேர்ந்தெடுங்கள்</b>, அல்லது தொடங்கப் புள்ளிக்கோட்டுக்குள் இழுங்கள்.","hint_multi_2d":"{n} மூலங்கள், ஒரு வரைபடம். நகர்த்த <b>ஒரே ஒரு அலையை மட்டும் இயக்கத்தில் விடுங்கள்</b>.","hint_deep_2d":"<b>ஆழத்தில்.</b> வடிவம் அகலமாகவும் மங்கலாகவும் உள்ளது &mdash; பல உணரிகள் ஏதோ படிக்கின்றன, எதுவும் அதிகம் படிப்பதில்லை.","hint_shallow_2d":"<b>மேற்பரப்புக்கு அருகில்.</b> ஓரிரு உணரிகளின் மேல் குறுகிய, வலுவான இடம்.","hint_default_2d":"தங்கப் புள்ளியைப் புள்ளிக்கோட்டுக்குள் எங்கும் இழுங்கள். வரைபடமும் எண்களும் மாறுவதைப் பாருங்கள்.","hint_cross":"பெருக்கல் குறிதான் அது உண்மையில் இருந்த இடம்.","hint_puzzle":"இந்த வரைபடம் தலைக்குள் உள்ள ஒரு இடத்திலிருந்து வந்தது. அது எங்கே இருந்தது என்று நினைக்கிறீர்களோ அங்கே <b>தங்கப் புள்ளியை இழுங்கள்</b>.","band_all_2d":"<b>ஐந்தும் ஒரே நேரத்தில்.</b> மூளை ஒருபோதும் ஒரே அலையை மட்டும் இயக்குவதில்லை; ஒவ்வொரு உணரியும் அனைத்தின் கலவையைப் படிக்கிறது. வரைபடம் அந்தக் கலவையின் ஒரு கணத்தைக் காட்டுகிறது.[[kane]]","band_none_2d":"<b>மூளை அலை இல்லை.</b> தலைக்குள் எதுவும் இயங்கவில்லை, எனவே ஒவ்வொரு உணரியும் பூஜ்யம் படிக்கிறது. ஒரு அலையைத் தேர்ந்தெடுங்கள், அல்லது தொடங்கப் புள்ளிக்கோட்டுக்குள் இழுங்கள்.","note_a":"புள்ளிக்கோட்டு வட்டம் மூளை; அதற்கு வெளியே உள்ள பட்டை மண்டையோடும் உச்சந்தலையும். எலும்பு மூளை அல்லது உச்சந்தலையை விடச் சுமார் பதினைந்து மடங்கு குறைவாக மின்சாரத்தைக் கடத்துகிறது,[[oostendorp]] எனவே சமிக்ஞை உணரிகளை அடையும் முன் பக்கவாட்டில் பரவுகிறது. மங்கல் நழுவுகோல் கட்டுப்படுத்துவது அதைத்தான்.","note_b":"மங்கலைக் குறைத்தால் புதிர் எளிது. உண்மையான மண்டையோட்டின் நிலைக்கு உயர்த்தினால் கடினம் &mdash; அதனால்தான் EEG ஏதோ ஒன்று <em>எங்கே</em> நடந்தது என்பதை விட <em>எப்போது</em> நடந்தது என்பதை மிகத் துல்லியமாகச் சொல்கிறது.[[michel]]","v_within":"<strong>{d} mm</strong> க்குள். இந்த முறை அடையக்கூடிய அளவுக்கு நெருக்கம்.","v_good":"<strong>{d} mm</strong> தொலைவு &mdash; நன்று. ","v_away":"<strong>{d} mm</strong> தொலைவு. ","v_lookmatch":"ஆனால் பொருத்தத்தைப் பாருங்கள்: <strong>r = {r}</strong>. வலிமையைச் சரிசெய்தால், உங்கள் இடத்தின் அளவீடுகள் உண்மையானவற்றிலிருந்து {sw} சராசரி எடுத்த பின் எஞ்சும் பின்னணி EEG ஐ விடக் குறைவாகவே வேறுபடுகின்றன. உணரிகளால் அவற்றைப் பிரித்தறிய முடியாது.","v_patternmatch":"வடிவப் பொருத்தம் <strong>r = {r}</strong>.","v_cloud":"நிழலிட்ட ஒவ்வொரு இடமும், வலிமையைச் சரிசெய்தால், {sw} சராசரி எடுத்த பின் எஞ்சும் பின்னணி EEG ஐ விடக் குறைவாக வேறுபடும் அளவீடுகளைத் தருகிறது. தரவுகளால் அவற்றுக்கிடையே தேர்வு செய்ய முடியாது. அதிக ஸ்வீப்களைச் சராசரி எடுத்தால் இது சுருங்கும்; மங்கலை உயர்த்தினால் வளரும்.","model_2d_1":"இது உணரி வளையத்தின் மட்டத்தில் தலையின் குறுக்குவெட்டு, மேலிருந்து பார்த்தது, மூக்கு மேலே. உணரிகள் சர்வதேச 10-10 அமைப்பின் இருபது நிலைகள்; நெற்றி, நெற்றிப்பொட்டு, பின்புறம் வழியாகத் தலையைச் சுற்றி, ஒவ்வொன்றும் 18&deg; இடைவெளியில்.[[oostenveld]] தங்கப் புள்ளி ஒரே சீரான கடத்திக்குள் உள்ள ஒருங்கிணைந்த செயல்பாட்டின் சிறிய பகுதி (ஒரு மின்னோட்ட இருமுனை); அதன் புலம் எல்லா உணரிகளையும் ஒரே நேரத்தில் அடைகிறது.[[nunez]] மண்டையோடு தனி அடுக்காக மாதிரியமைக்கப்படவில்லை: எலும்பு மூளை, உச்சந்தலையை விடச் சுமார் பதினைந்து மடங்கு குறைவாக மின்சாரத்தைக் கடத்துவதால் ஏற்படும் பக்கவாட்டுப் பரவல்,[[oostendorp]] மூலம் சற்று ஆழத்தில் இருப்பது போல் நடந்துகொள்ளச் செய்து உருவகப்படுத்தப்படுகிறது. ஆழங்கள் சுமார் 89&nbsp;mm உச்சந்தலை ஆரத்தைக் கருதுகின்றன. இவை அனைத்தும் விளக்கத்துக்காக எளிமைப்படுத்தப்பட்டவை.","model_2d_2":"<b>மூளை அலைகள்.</b> ஐந்து அலைவரிசைகளும் மருத்துவ வரையறைகளைப் பின்பற்றுகின்றன.[[kane]] ஒவ்வொரு பொத்தானும் மூலத்தை அந்த அலை வழக்கமாக மிக வலுவாக இருக்கும் இடத்துக்கு நகர்த்தி, அதன் அளவை வழக்கமான உச்சந்தலை வீச்சுக்கு அமைக்கிறது. இந்தக் குறுக்குவெட்டு உச்சந்தலைக்குக் கீழே செல்கிறது, எனவே தீட்டா (உச்சிக்குச் சற்று முன்) மற்றும் பீட்டா (இயக்கப் பட்டையின் மேல்) குறுக்குவெட்டின் அருகிலுள்ள புள்ளியில் வரையப்படுகின்றன. இந்தப் பக்கம் ஒரு கணத்தைக் காட்டுகிறது, காலத்தில் அலையை அல்ல &mdash; 3D உணரி வலை அலைகளைக் காட்டுகிறது. உண்மையான அலைகள் ஒரே நேரத்தில் பல மூலங்களிலிருந்து வருகின்றன, நபருக்கு நபர் வேறுபடுகின்றன; ஒவ்வொரு அலைவரிசைக்கும் ஒரே மூலம் என்பது எளிமைப்படுத்தல்.","model_2d_3":"<b>பொருந்தும் அனைத்து விடைகளும்.</b> உச்சந்தலை அளவீடுகளிலிருந்து பின்னோக்கி மூலத்தைக் கண்டறிவதற்கு ஒரே விடை இல்லை.[[michel,grech]] நிழலிட்ட பகுதி, வலிமையைச் சரிசெய்தால், தேர்ந்தெடுத்த எண்ணிக்கை ஸ்வீப்களைச் சராசரி எடுத்த பின் எஞ்சும் பின்னணி EEG ஐ விடக் குறைவாக வேறுபடும் எல்லா வெளிநோக்கு மூலங்களையும் காட்டுகிறது, ERP இல் உள்ளது போல்: ஒரு ஸ்வீப்பில் ஒவ்வொரு உணரிக்கும் சுமார் 10&nbsp;&micro;V, சராசரி எடுத்த எண்ணிக்கையின் வர்க்கமூலத்துடன் குறைகிறது (10 க்கு 3.2&nbsp;&micro;V, 100 க்கு 1&nbsp;&micro;V). இது ஒவ்வொரு உணரியின் இரைச்சலும் தனித்தனி என்று கருதுகிறது; உண்மையான பின்னணி EEG அண்டை உணரிகளுக்கு இடையே பகிரப்படுகிறது, எனவே நடைமுறையில் பகுதி பெரியது.","footer_2d":"விளக்கத்துக்காக உருவாக்கப்பட்ட, எளிமைப்படுத்தப்பட்ட இருபரிமாண மாதிரி."},"hi":{"names_join":"{a} और {b}","lang_label":"भाषा","controls":"नियंत्रण","blur_label":"खोपड़ी का धुंधलापन[[oostendorp]]","blur_none":"लगभग नहीं","blur_some":"थोड़ा","blur_real":"वास्तविक","blur_heavy":"ज़्यादा","rhythm_h":"मस्तिष्क लय[[kane]]","aria_bands":"मस्तिष्क लय चुनें","chip_delta":"डेल्टा &lt;4 Hz","chip_theta":"थीटा 4&ndash;8 Hz","chip_alpha":"अल्फ़ा 8&ndash;13 Hz","chip_beta":"बीटा 14&ndash;30 Hz","chip_gamma":"गामा 30&ndash;80 Hz","chip_allbands":"सभी लय","chip_clear":"साफ़ करें","name_delta":"डेल्टा","name_theta":"थीटा","name_alpha":"अल्फ़ा","name_beta":"बीटा","name_gamma":"गामा","mix":"<b>{names} एक साथ।</b> हर सेंसर इनका मिश्रण पढ़ता है।","band_delta":"<b>डेल्टा, 4 Hz से कम।</b> गहरी नींद की बड़ी, धीमी तरंगें। हर तरंग आमतौर पर सिर के आगे से शुरू होकर पीछे की ओर फैलती है।[[massimini]] यह मॉडल एक ही स्थिर स्रोत दिखाता है, इसलिए वह यात्रा नहीं दिखा सकता।","band_theta":"<b>थीटा, 4&ndash;8 Hz।</b> एकाग्रता और समस्या सुलझाते समय, सिर के शीर्ष से ठीक आगे मध्य रेखा पर दिखती है।[[kane,mitchell]]","band_alpha":"<b>अल्फ़ा, 8&ndash;13 Hz।</b> आँखें बंद हों और मन शांत हो तो सिर के पिछले भाग पर सबसे प्रबल; वयस्कों में आमतौर पर 50 &micro;V से कम। आँखें खोलने पर यह रुक जाती है।[[kane,klimesch]]","band_beta":"<b>बीटा, 14&ndash;30 Hz।</b> सिर के आगे और बीच के भाग पर, ज़्यादातर 30 &micro;V से कम। गति-पट्टी के ऊपर, विपरीत हाथ हिलाने पर यह घटती है और बाद में फिर उछलती है।[[kane,pfurt]]","band_gamma":"<b>गामा, 30&ndash;80 Hz।</b> जो हम देखते हैं उसे एक साथ जोड़ने से जुड़ी है।[[tallon]] खोपड़ी की सतह पर यह बहुत छोटी होती है, और मांसपेशियाँ तथा अनजाने में होने वाली आँखों की छोटी, उछलती हरकतें इसकी आसानी से नकल कर देती हैं।[[yuval]]","band_theta_slice":"वह स्थान इस काट के ऊपर है, इसलिए यहाँ उसे आगे की ओर दिखाया गया है।","band_beta_slice":"वह पट्टी इस काट के ऊपर है, इसलिए यहाँ उसे सबसे नज़दीकी बिंदु पर, बाईं ओर दिखाया गया है।","k_depth":"गहराई","k_peaksensor":"शीर्ष सेंसर","k_peak":"शीर्ष रीडिंग","k_half":"आधे शीर्ष से ऊपर","refs_h":"यह मॉडल कैसे काम करता है, और इसके स्रोत","title_2d":"यह कहाँ से आ रहा है?","h1_2d":"यह कहाँ से आ रहा है?","intro_2d":"बीस सेंसर मानक 10-10 स्थितियों पर सिर के चारों ओर एक घेरे में हैं।[[oostenveld]] हर एक एक वोल्टेज पढ़ता है। उन बीस अंकों से, क्या आप बता सकते हैं कि सिर के भीतर गतिविधि कहाँ शुरू हुई?","aria_tabs":"गतिविधि चुनें","tab_a":"1 &nbsp;स्रोत हिलाएँ","tab_b":"2 &nbsp;स्रोत खोजें","aria_cv2d":"ऊपर से देखा गया सिर का काट: बीस सेंसर और एक वोल्टेज नक्शा","ctl_guess":"आपका अनुमान","tilt_label":"स्रोत की दिशा","tilt_out":"बाहर की ओर","tilt_side":"बग़ल में","tilt_tilted":"झुका हुआ","btn_deep":"गहरा रखें","btn_shallow":"सतह के पास रखें","sweeps_label":"औसत किए गए स्वीप","sweeps_noise":"प्रति सेंसर शोर {n} &micro;V","sweep_1":"1 स्वीप","sweep_n":"{n} स्वीप","btn_check":"मेरा अनुमान जाँचें","btn_cloud_show":"मेल खाने वाले सभी उत्तर दिखाएँ","btn_cloud_hide":"बाक़ी उत्तर छिपाएँ","btn_new":"नई पहेली","k_rhythm":"लय","rhythm_none":"कोई नहीं","rhythm_n":"{n} लय","k_match":"पैटर्न मेल","k_yourdepth":"आपकी गहराई","k_distoff":"कितना चूके","hint_none_2d":"कुछ भी सक्रिय नहीं है। <b>कोई लय चुनें</b>, या शुरू करने के लिए बिंदीदार रेखा के भीतर खींचें।","hint_multi_2d":"{n} स्रोत, एक नक्शा। हिलाने के लिए <b>केवल एक लय चालू रखें</b>।","hint_deep_2d":"<b>गहरा।</b> पैटर्न चौड़ा और फीका है &mdash; कई सेंसर कुछ पढ़ते हैं, कोई ज़्यादा नहीं।","hint_shallow_2d":"<b>सतह के पास।</b> एक-दो सेंसरों पर कसा हुआ, प्रबल स्थान।","hint_default_2d":"सुनहरे बिंदु को बिंदीदार रेखा के भीतर कहीं भी खींचिए। नक्शे और अंकों को बदलते देखिए।","hint_cross":"क्रॉस वह जगह है जहाँ यह असल में था।","hint_puzzle":"यह नक्शा सिर के भीतर एक स्थान से आया है। जहाँ आपको लगता है वहाँ <b>सुनहरा बिंदु खींचिए</b>।","band_all_2d":"<b>पाँचों एक साथ।</b> मस्तिष्क कभी केवल एक लय नहीं चलाता, और हर सेंसर सबका मिश्रण पढ़ता है। नक्शा उस मिश्रण का एक पल दिखाता है।[[kane]]","band_none_2d":"<b>कोई मस्तिष्क लय नहीं।</b> सिर के भीतर कुछ भी सक्रिय नहीं, इसलिए हर सेंसर शून्य पढ़ता है। कोई लय चुनें, या शुरू करने के लिए बिंदीदार रेखा के भीतर खींचें।","note_a":"बिंदीदार घेरा मस्तिष्क है; उसके बाहर की पट्टी खोपड़ी और त्वचा है। हड्डी मस्तिष्क या त्वचा से लगभग पंद्रह गुना कम बिजली चलाती है,[[oostendorp]] इसलिए सेंसर तक पहुँचने से पहले संकेत किनारों की ओर फैल जाता है। धुंधलापन स्लाइडर यही नियंत्रित करता है।","note_b":"धुंधलापन घटाएँ तो पहेली आसान है। असली खोपड़ी के स्तर तक बढ़ाएँ तो कठिन &mdash; इसीलिए EEG यह कि कुछ <em>कब</em> हुआ, यह बताने से कहीं ज़्यादा सटीक है कि <em>कहाँ</em> हुआ।[[michel]]","v_within":"<strong>{d} mm</strong> के भीतर। यह तरीका जितना पास पहुँच सकता है।","v_good":"<strong>{d} mm</strong> दूर &mdash; बढ़िया। ","v_away":"<strong>{d} mm</strong> दूर। ","v_lookmatch":"पर मेल देखिए: <strong>r = {r}</strong>। ताक़त समायोजित करने पर, आपके स्थान की रीडिंग असली से उतनी भी अलग नहीं जितनी {sw} के औसत के बाद बची पृष्ठभूमि EEG है। सेंसर इन्हें अलग नहीं पहचान सकते।","v_patternmatch":"पैटर्न मेल <strong>r = {r}</strong>।","v_cloud":"हर छायांकित स्थान, ताक़त समायोजित करने पर, ऐसी रीडिंग देता है जो असली से {sw} के औसत के बाद बची पृष्ठभूमि EEG से कम अलग है। डेटा इनमें से चुन नहीं सकता। ज़्यादा स्वीप का औसत लें तो यह सिकुड़ता है; धुंधलापन बढ़ाएँ तो बढ़ता है।","model_2d_1":"यह सेंसर घेरे के स्तर पर सिर का काट है, ऊपर से देखा गया, नाक ऊपर की ओर। सेंसर अंतर्राष्ट्रीय 10-10 प्रणाली की बीस स्थितियाँ हैं, जो माथे, कनपटियों और पीछे से होते हुए सिर के चारों ओर, एक-दूसरे से 18&deg; पर हैं।[[oostenveld]] सुनहरा बिंदु एक समान चालक में समकालिक गतिविधि का छोटा टुकड़ा (एक धारा द्विध्रुव) है, और इसका क्षेत्र हर सेंसर तक एक साथ पहुँचता है।[[nunez]] खोपड़ी को अलग परत के रूप में नहीं बनाया गया: हड्डी के मस्तिष्क और त्वचा से लगभग पंद्रह गुना कम बिजली चलाने से होने वाला किनारों का फैलाव,[[oostendorp]] स्रोत को थोड़ा गहरा मानकर नकल किया गया है। गहराइयाँ लगभग 89&nbsp;mm की त्वचा त्रिज्या मानती हैं। सब कुछ प्रदर्शन के लिए सरल किया गया है।","model_2d_2":"<b>मस्तिष्क लय।</b> पाँचों बैंड चिकित्सीय परिभाषाओं के अनुसार हैं।[[kane]] हर बटन स्रोत को उस जगह ले जाता है जहाँ वह लय आमतौर पर सबसे प्रबल होती है, और उसका आकार सामान्य आयाम के बराबर करता है। यह काट सिर के शीर्ष से नीचे से गुज़रता है, इसलिए थीटा (शीर्ष से ठीक आगे) और बीटा (गति-पट्टी के ऊपर) को काट के सबसे नज़दीकी बिंदु पर दिखाया गया है। यह पेज एक पल दिखाता है, समय में लय नहीं &mdash; तरंगें 3D सेंसर जाल में दिखती हैं। असली लय एक साथ कई स्रोतों से आती हैं और लोगों में अलग होती हैं; हर बैंड के लिए एक स्रोत एक सरलीकरण है।","model_2d_3":"<b>मेल खाने वाले सभी उत्तर।</b> खोपड़ी की रीडिंग से उल्टा चलकर स्रोत खोजने का कोई एक उत्तर नहीं है।[[michel,grech]] छायांकित क्षेत्र वे सभी बाहर की ओर वाले स्रोत दिखाता है जो, ताक़त समायोजित करने पर, असली रीडिंग से उतनी भी अलग नहीं होते जितनी चुनी गई संख्या के स्वीप के औसत के बाद बची पृष्ठभूमि EEG, जैसे ERP में: एक स्वीप में प्रति सेंसर लगभग 10&nbsp;&micro;V, जो औसत की संख्या के वर्गमूल के साथ घटता है (10 पर 3.2&nbsp;&micro;V, 100 पर 1&nbsp;&micro;V)। यह मानता है कि हर सेंसर का शोर स्वतंत्र है; असली पृष्ठभूमि EEG पड़ोसी सेंसरों में साझा होती है, इसलिए व्यवहार में क्षेत्र बड़ा होता है।","footer_2d":"प्रदर्शन के लिए बनाया गया, सरल किया हुआ द्वि-आयामी मॉडल।"},"te":{"names_join":"{a} మరియు {b}","lang_label":"భాష","controls":"నియంత్రణలు","blur_label":"పుర్రె మసక[[oostendorp]]","blur_none":"దాదాపు లేదు","blur_some":"కొంత","blur_real":"వాస్తవికం","blur_heavy":"ఎక్కువ","rhythm_h":"మెదడు లయ[[kane]]","aria_bands":"మెదడు లయను ఎంచుకోండి","chip_delta":"డెల్టా &lt;4 Hz","chip_theta":"థీటా 4&ndash;8 Hz","chip_alpha":"ఆల్ఫా 8&ndash;13 Hz","chip_beta":"బీటా 14&ndash;30 Hz","chip_gamma":"గామా 30&ndash;80 Hz","chip_allbands":"అన్ని లయలు","chip_clear":"తొలగించు","name_delta":"డెల్టా","name_theta":"థీటా","name_alpha":"ఆల్ఫా","name_beta":"బీటా","name_gamma":"గామా","mix":"<b>{names} కలిసి.</b> ప్రతి సెన్సర్ వాటి మిశ్రమాన్ని చదువుతుంది.","band_delta":"<b>డెల్టా, 4 Hz కంటే తక్కువ.</b> గాఢ నిద్రలోని పెద్ద, నెమ్మదైన తరంగాలు. ప్రతి తరంగం సాధారణంగా తల ముందుభాగంలో మొదలై వెనక్కి సాగుతుంది.[[massimini]] ఈ నమూనా ఒకే స్థిరమైన మూలాన్ని చూపిస్తుంది, కాబట్టి ఆ ప్రయాణాన్ని చూపలేదు.","band_theta":"<b>థీటా, 4&ndash;8 Hz.</b> ఏకాగ్రత, సమస్య పరిష్కారం సమయంలో, తల శిఖరానికి కొంచెం ముందు మధ్యరేఖపై కనిపిస్తుంది.[[kane,mitchell]]","band_alpha":"<b>ఆల్ఫా, 8&ndash;13 Hz.</b> కళ్ళు మూసుకుని మనసు విశ్రాంతిగా ఉన్నప్పుడు తల వెనుకభాగంలో అత్యంత బలంగా ఉంటుంది; పెద్దలలో సాధారణంగా 50 &micro;V కంటే తక్కువ. కళ్ళు తెరిస్తే అది ఆగిపోతుంది.[[kane,klimesch]]","band_beta":"<b>బీటా, 14&ndash;30 Hz.</b> తల ముందు, మధ్య భాగాలపై, ఎక్కువగా 30 &micro;V కంటే తక్కువ. కదలిక పట్టీపై, ఎదురు వైపు చేతిని కదిలించినప్పుడు ఇది తగ్గి, తర్వాత మళ్ళీ పెరుగుతుంది.[[kane,pfurt]]","band_gamma":"<b>గామా, 30&ndash;80 Hz.</b> మనం చూసేదాన్ని ఒకటిగా కలపడంతో సంబంధం ఉంది.[[tallon]] తలచర్మంపై ఇది చాలా చిన్నది; కండరాలు, మనకు తెలియకుండా జరిగే చిన్న, ఎగిరే కంటి కదలికలు దీన్ని సులభంగా అనుకరిస్తాయి.[[yuval]]","band_theta_slice":"ఆ ప్రదేశం ఈ అడ్డుకోతకు పైన ఉంది, కాబట్టి ఇక్కడ దాన్ని ముందుభాగంలో చూపించాము.","band_beta_slice":"ఆ పట్టీ ఈ అడ్డుకోతకు పైన ఉంది, కాబట్టి ఇక్కడ దాన్ని దగ్గరి బిందువు వద్ద, ఎడమ వైపు చూపించాము.","k_depth":"లోతు","k_peaksensor":"గరిష్ఠ సెన్సర్","k_peak":"గరిష్ఠ రీడింగ్","k_half":"సగం గరిష్ఠం పైన","refs_h":"ఈ నమూనా ఎలా పని చేస్తుంది, ఆధారాలు","title_2d":"ఇది ఎక్కడి నుంచి వస్తోంది?","h1_2d":"ఇది ఎక్కడి నుంచి వస్తోంది?","intro_2d":"ఇరవై సెన్సర్లు ప్రామాణిక 10-10 స్థానాల్లో తల చుట్టూ ఒక వలయంలో ఉన్నాయి.[[oostenveld]] ప్రతిదీ ఒక వోల్టేజ్ చదువుతుంది. ఆ ఇరవై సంఖ్యల నుంచి, తల లోపల కార్యకలాపం ఎక్కడ మొదలైందో మీరు కనుగొనగలరా?","aria_tabs":"కార్యకలాపాన్ని ఎంచుకోండి","tab_a":"1 &nbsp;మూలాన్ని జరపండి","tab_b":"2 &nbsp;మూలాన్ని కనుగొనండి","aria_cv2d":"పైనుంచి చూసిన తల అడ్డుకోత: ఇరవై సెన్సర్లు, వోల్టేజ్ పటం","ctl_guess":"మీ అంచనా","tilt_label":"మూలం దిశ","tilt_out":"బయటికి","tilt_side":"పక్కకు","tilt_tilted":"వాలుగా","btn_deep":"లోతులో ఉంచు","btn_shallow":"ఉపరితలం దగ్గర ఉంచు","sweeps_label":"సగటు తీసిన స్వీప్‌లు","sweeps_noise":"ఒక్కో సెన్సర్‌కు శబ్దం {n} &micro;V","sweep_1":"1 స్వీప్","sweep_n":"{n} స్వీప్‌లు","btn_check":"నా అంచనా తనిఖీ చేయి","btn_cloud_show":"సరిపోయే అన్ని సమాధానాలు చూపించు","btn_cloud_hide":"ఇతర సమాధానాలు దాచు","btn_new":"కొత్త పజిల్","k_rhythm":"లయ","rhythm_none":"లేదు","rhythm_n":"{n} లయలు","k_match":"నమూనా సరిపోలిక","k_yourdepth":"మీ లోతు","k_distoff":"ఎంత దూరం తప్పారు","hint_none_2d":"ఏదీ చురుకుగా లేదు. <b>ఒక లయను ఎంచుకోండి</b>, లేదా మొదలుపెట్టడానికి చుక్కల రేఖ లోపల లాగండి.","hint_multi_2d":"{n} మూలాలు, ఒక పటం. జరపడానికి <b>ఒక్క లయను మాత్రమే ఆన్‌లో ఉంచండి</b>.","hint_deep_2d":"<b>లోతులో.</b> నమూనా వెడల్పుగా, మసకగా ఉంది &mdash; చాలా సెన్సర్లు ఏదో చదువుతాయి, ఏదీ ఎక్కువ చదవదు.","hint_shallow_2d":"<b>ఉపరితలం దగ్గర.</b> ఒకటి రెండు సెన్సర్లపై బిగుతైన, బలమైన ప్రదేశం.","hint_default_2d":"బంగారు చుక్కను చుక్కల రేఖ లోపల ఎక్కడికైనా లాగండి. పటం, సంఖ్యలు మారడం చూడండి.","hint_cross":"గుణకార గుర్తే అది నిజంగా ఉన్న చోటు.","hint_puzzle":"ఈ పటం తల లోపలి ఒక చోటు నుంచి వచ్చింది. అది ఎక్కడ ఉందని మీరు అనుకుంటున్నారో అక్కడికి <b>బంగారు చుక్కను లాగండి</b>.","band_all_2d":"<b>ఐదూ ఒకేసారి.</b> మెదడు ఎప్పుడూ ఒక్క లయను మాత్రమే నడపదు, ప్రతి సెన్సర్ అన్నింటి మిశ్రమాన్ని చదువుతుంది. పటం ఆ మిశ్రమంలోని ఒక క్షణాన్ని చూపిస్తుంది.[[kane]]","band_none_2d":"<b>మెదడు లయ లేదు.</b> తల లోపల ఏదీ చురుకుగా లేదు, కాబట్టి ప్రతి సెన్సర్ సున్నా చదువుతుంది. ఒక లయను ఎంచుకోండి, లేదా మొదలుపెట్టడానికి చుక్కల రేఖ లోపల లాగండి.","note_a":"చుక్కల వృత్తం మెదడు; దాని బయటి పట్టీ పుర్రె, తలచర్మం. ఎముక మెదడు లేదా తలచర్మం కంటే సుమారు పదిహేను రెట్లు తక్కువగా విద్యుత్తును ప్రసరిస్తుంది,[[oostendorp]] కాబట్టి సంకేతం సెన్సర్లను చేరే ముందే పక్కలకు వ్యాపిస్తుంది. మసక స్లైడర్ నియంత్రించేది అదే.","note_b":"మసక తగ్గిస్తే పజిల్ సులభం. నిజమైన పుర్రె స్థాయికి పెంచితే కష్టం &mdash; అందుకే EEG ఏదైనా <em>ఎక్కడ</em> జరిగిందనే దానికంటే <em>ఎప్పుడు</em> జరిగిందో చాలా కచ్చితంగా చెబుతుంది.[[michel]]","v_within":"<strong>{d} mm</strong> లోపల. ఈ పద్ధతి చేరగలిగినంత దగ్గరగా.","v_good":"<strong>{d} mm</strong> దూరం &mdash; బాగుంది. ","v_away":"<strong>{d} mm</strong> దూరం. ","v_lookmatch":"కానీ సరిపోలిక చూడండి: <strong>r = {r}</strong>. బలాన్ని సర్దుబాటు చేస్తే, మీ స్థానం రీడింగులు అసలు వాటి నుంచి {sw} సగటు తర్వాత మిగిలే నేపథ్య EEG కంటే తక్కువగా భిన్నంగా ఉన్నాయి. సెన్సర్లు వాటిని వేరు చేయలేవు.","v_patternmatch":"నమూనా సరిపోలిక <strong>r = {r}</strong>.","v_cloud":"ప్రతి నీడ ఉన్న చోటు, బలాన్ని సర్దుబాటు చేస్తే, అసలు వాటి నుంచి {sw} సగటు తర్వాత మిగిలే నేపథ్య EEG కంటే తక్కువగా భిన్నమైన రీడింగులు ఇస్తుంది. డేటా వాటి మధ్య ఎంచుకోలేదు. ఎక్కువ స్వీప్‌ల సగటు తీస్తే ఇది కుంచించుకుపోతుంది; మసక పెంచితే పెరుగుతుంది.","model_2d_1":"ఇది సెన్సర్ వలయం స్థాయిలో తల అడ్డుకోత, పైనుంచి చూసినట్లు, ముక్కు పైభాగంలో. సెన్సర్లు అంతర్జాతీయ 10-10 వ్యవస్థలోని ఇరవై స్థానాలు; నుదురు, కణతలు, వెనుకభాగం గుండా తల చుట్టూ, ఒక్కొక్కటి 18&deg; దూరంలో.[[oostenveld]] బంగారు చుక్క ఒక ఏకరీతి వాహకంలోని సమకాలిక కార్యకలాపం యొక్క చిన్న భాగం (ఒక విద్యుత్ ద్విధ్రువం); దాని క్షేత్రం అన్ని సెన్సర్లను ఒకేసారి చేరుతుంది.[[nunez]] పుర్రెను ప్రత్యేక పొరగా నమూనా చేయలేదు: ఎముక మెదడు, తలచర్మం కంటే సుమారు పదిహేను రెట్లు తక్కువగా విద్యుత్తును ప్రసరించడం వల్ల కలిగే పక్క వ్యాప్తిని,[[oostendorp]] మూలం కొంచెం లోతులో ఉన్నట్లు ప్రవర్తించేలా చేసి అనుకరించాము. లోతులు సుమారు 89&nbsp;mm తలచర్మ వ్యాసార్ధాన్ని ఊహిస్తాయి. ఇదంతా ప్రదర్శన కోసం సరళీకరించబడింది.","model_2d_2":"<b>మెదడు లయలు.</b> ఐదు బ్యాండ్‌లు వైద్య నిర్వచనాలను అనుసరిస్తాయి.[[kane]] ప్రతి బటన్ మూలాన్ని ఆ లయ సాధారణంగా అత్యంత బలంగా ఉండే చోటుకు జరిపి, దాని పరిమాణాన్ని సాధారణ వ్యాప్తికి సెట్ చేస్తుంది. ఈ అడ్డుకోత తల శిఖరం కిందుగా వెళ్తుంది, కాబట్టి థీటా (శిఖరానికి కొంచెం ముందు), బీటా (కదలిక పట్టీపై) లను అడ్డుకోతలోని దగ్గరి బిందువు వద్ద గీశాము. ఈ పేజీ ఒక క్షణాన్ని చూపిస్తుంది, కాలంలో లయను కాదు &mdash; 3D సెన్సర్ వల తరంగాలను చూపిస్తుంది. నిజమైన లయలు ఒకేసారి అనేక మూలాల నుంచి వస్తాయి, వ్యక్తుల మధ్య భిన్నంగా ఉంటాయి; ఒక్కో బ్యాండ్‌కు ఒక్కో మూలం అనేది సరళీకరణ.","model_2d_3":"<b>సరిపోయే అన్ని సమాధానాలు.</b> తలచర్మ రీడింగుల నుంచి వెనక్కి వెళ్ళి మూలాన్ని కనుగొనడానికి ఒకే సమాధానం లేదు.[[michel,grech]] నీడ ఉన్న ప్రాంతం, బలాన్ని సర్దుబాటు చేస్తే, ఎంచుకున్న సంఖ్యలో స్వీప్‌ల సగటు తర్వాత మిగిలే నేపథ్య EEG కంటే తక్కువగా భిన్నమయ్యే బయటికి చూసే అన్ని మూలాలను చూపిస్తుంది, ERP లో లాగా: ఒక స్వీప్‌లో ఒక్కో సెన్సర్‌కు సుమారు 10&nbsp;&micro;V, సగటు తీసిన సంఖ్య వర్గమూలంతో తగ్గుతుంది (10 కి 3.2&nbsp;&micro;V, 100 కి 1&nbsp;&micro;V). ఇది ప్రతి సెన్సర్ శబ్దం స్వతంత్రమని ఊహిస్తుంది; నిజమైన నేపథ్య EEG పొరుగు సెన్సర్ల మధ్య పంచుకోబడుతుంది, కాబట్టి ఆచరణలో ప్రాంతం పెద్దది.","footer_2d":"ప్రదర్శన కోసం నిర్మించిన, సరళీకృత ద్విమితీయ నమూనా."},"ml":{"names_join":"{a}, {b} എന്നിവ","lang_label":"ഭാഷ","controls":"നിയന്ത്രണങ്ങൾ","blur_label":"തലയോട്ടിയുടെ മങ്ങൽ[[oostendorp]]","blur_none":"ഏതാണ്ട് ഇല്ല","blur_some":"കുറച്ച്","blur_real":"യഥാർത്ഥം","blur_heavy":"കൂടുതൽ","rhythm_h":"മസ്തിഷ്ക താളം[[kane]]","aria_bands":"മസ്തിഷ്ക താളം തിരഞ്ഞെടുക്കുക","chip_delta":"ഡെൽറ്റ &lt;4 Hz","chip_theta":"തീറ്റ 4&ndash;8 Hz","chip_alpha":"ആൽഫ 8&ndash;13 Hz","chip_beta":"ബീറ്റ 14&ndash;30 Hz","chip_gamma":"ഗാമ 30&ndash;80 Hz","chip_allbands":"എല്ലാ താളങ്ങളും","chip_clear":"മായ്ക്കുക","name_delta":"ഡെൽറ്റ","name_theta":"തീറ്റ","name_alpha":"ആൽഫ","name_beta":"ബീറ്റ","name_gamma":"ഗാമ","mix":"<b>{names} ഒരുമിച്ച്.</b> ഓരോ സെൻസറും അവയുടെ മിശ്രണം വായിക്കുന്നു.","band_delta":"<b>ഡെൽറ്റ, 4 Hz-ൽ താഴെ.</b> ഗാഢനിദ്രയിലെ വലിയ, പതുക്കെയുള്ള തരംഗങ്ങൾ. ഓരോന്നും സാധാരണയായി തലയുടെ മുൻഭാഗത്ത് തുടങ്ങി പിന്നോട്ട് നീങ്ങുന്നു.[[massimini]] ഈ മാതൃക ഒരൊറ്റ സ്ഥിര സ്രോതസ്സ് മാത്രം കാണിക്കുന്നതിനാൽ ആ സഞ്ചാരം കാണിക്കാനാവില്ല.","band_theta":"<b>തീറ്റ, 4&ndash;8 Hz.</b> ഏകാഗ്രതയിലും പ്രശ്നപരിഹാരത്തിലും, തലയുടെ ഉച്ചിക്ക് തൊട്ടുമുന്നിൽ മധ്യരേഖയിൽ കാണുന്നു.[[kane,mitchell]]","band_alpha":"<b>ആൽഫ, 8&ndash;13 Hz.</b> കണ്ണടച്ച് മനസ്സ് വിശ്രമിക്കുമ്പോൾ തലയുടെ പിൻഭാഗത്ത് ഏറ്റവും ശക്തം; മുതിർന്നവരിൽ സാധാരണയായി 50 &micro;V-ൽ താഴെ. കണ്ണ് തുറന്നാൽ അത് തടയപ്പെടുന്നു.[[kane,klimesch]]","band_beta":"<b>ബീറ്റ, 14&ndash;30 Hz.</b> തലയുടെ മുൻഭാഗത്തും മധ്യഭാഗത്തും, മിക്കവാറും 30 &micro;V-ൽ താഴെ. ചലനപ്പട്ടയ്ക്ക് മുകളിൽ, എതിർവശത്തെ കൈ ചലിപ്പിക്കുമ്പോൾ ഇത് കുറയുകയും പിന്നീട് വീണ്ടും ഉയരുകയും ചെയ്യുന്നു.[[kane,pfurt]]","band_gamma":"<b>ഗാമ, 30&ndash;80 Hz.</b> നാം കാണുന്നതിനെ ഒന്നായി കൂട്ടിച്ചേർക്കുന്നതുമായി ബന്ധപ്പെട്ടത്.[[tallon]] തലയോട്ടിച്ചർമ്മത്തിൽ ഇത് വളരെ ചെറുതാണ്; പേശികളും നാമറിയാതെ സംഭവിക്കുന്ന ചെറിയ, ചാടുന്ന കണ്ണ് ചലനങ്ങളും ഇതിനെ എളുപ്പത്തിൽ അനുകരിക്കുന്നു.[[yuval]]","band_theta_slice":"ആ സ്ഥലം ഈ കുറുകെ മുറിവിന് മുകളിലാണ്, അതിനാൽ ഇവിടെ അത് മുൻഭാഗത്ത് കാണിച്ചിരിക്കുന്നു.","band_beta_slice":"ആ പട്ട ഈ കുറുകെ മുറിവിന് മുകളിലാണ്, അതിനാൽ ഇവിടെ അത് ഏറ്റവും അടുത്ത ബിന്ദുവിൽ, ഇടതുവശത്ത് കാണിച്ചിരിക്കുന്നു.","k_depth":"ആഴം","k_peaksensor":"ഉച്ച സെൻസർ","k_peak":"ഉച്ച റീഡിംഗ്","k_half":"പകുതി ഉച്ചത്തിന് മുകളിൽ","refs_h":"ഈ മാതൃക എങ്ങനെ പ്രവർത്തിക്കുന്നു, ആധാരങ്ങൾ","title_2d":"ഇത് എവിടെ നിന്ന് വരുന്നു?","h1_2d":"ഇത് എവിടെ നിന്ന് വരുന്നു?","intro_2d":"ഇരുപത് സെൻസറുകൾ സാധാരണ 10-10 സ്ഥാനങ്ങളിൽ തലയ്ക്കു ചുറ്റും ഒരു വലയത്തിലുണ്ട്.[[oostenveld]] ഓരോന്നും ഒരു വോൾട്ടേജ് വായിക്കുന്നു. ആ ഇരുപത് സംഖ്യകളിൽ നിന്ന്, തലയ്ക്കുള്ളിൽ പ്രവർത്തനം എവിടെ തുടങ്ങി എന്ന് കണ്ടെത്താമോ?","aria_tabs":"പ്രവർത്തനം തിരഞ്ഞെടുക്കുക","tab_a":"1 &nbsp;സ്രോതസ്സ് നീക്കുക","tab_b":"2 &nbsp;സ്രോതസ്സ് കണ്ടെത്തുക","aria_cv2d":"മുകളിൽ നിന്ന് കാണുന്ന തലയുടെ കുറുകെ മുറിവ്: ഇരുപത് സെൻസറുകളും ഒരു വോൾട്ടേജ് ഭൂപടവും","ctl_guess":"നിങ്ങളുടെ ഊഹം","tilt_label":"സ്രോതസ്സിന്റെ ദിശ","tilt_out":"പുറത്തേക്ക്","tilt_side":"വശത്തേക്ക്","tilt_tilted":"ചരിഞ്ഞ്","btn_deep":"ആഴത്തിൽ വയ്ക്കുക","btn_shallow":"ഉപരിതലത്തിനടുത്ത് വയ്ക്കുക","sweeps_label":"ശരാശരി എടുത്ത സ്വീപ്പുകൾ","sweeps_noise":"ഓരോ സെൻസറിലും ശബ്ദം {n} &micro;V","sweep_1":"1 സ്വീപ്പ്","sweep_n":"{n} സ്വീപ്പുകൾ","btn_check":"എന്റെ ഊഹം പരിശോധിക്കുക","btn_cloud_show":"യോജിക്കുന്ന എല്ലാ ഉത്തരങ്ങളും കാണിക്കുക","btn_cloud_hide":"മറ്റ് ഉത്തരങ്ങൾ മറയ്ക്കുക","btn_new":"പുതിയ പസിൽ","k_rhythm":"താളം","rhythm_none":"ഇല്ല","rhythm_n":"{n} താളങ്ങൾ","k_match":"മാതൃകാ യോജിപ്പ്","k_yourdepth":"നിങ്ങളുടെ ആഴം","k_distoff":"എത്ര അകലെ തെറ്റി","hint_none_2d":"ഒന്നും സജീവമല്ല. <b>ഒരു താളം തിരഞ്ഞെടുക്കുക</b>, അല്ലെങ്കിൽ തുടങ്ങാൻ കുത്തുവരയ്ക്കുള്ളിൽ വലിക്കുക.","hint_multi_2d":"{n} സ്രോതസ്സുകൾ, ഒരു ഭൂപടം. നീക്കാൻ <b>ഒരൊറ്റ താളം മാത്രം ഓണാക്കി വയ്ക്കുക</b>.","hint_deep_2d":"<b>ആഴത്തിൽ.</b> മാതൃക വിശാലവും മങ്ങിയതുമാണ് &mdash; പല സെൻസറുകളും എന്തെങ്കിലും വായിക്കുന്നു, ഒന്നും അധികം വായിക്കുന്നില്ല.","hint_shallow_2d":"<b>ഉപരിതലത്തിനടുത്ത്.</b> ഒന്നോ രണ്ടോ സെൻസറുകൾക്ക് മുകളിൽ ഇടുങ്ങിയ, ശക്തമായ സ്ഥലം.","hint_default_2d":"സ്വർണ്ണ കുത്ത് കുത്തുവരയ്ക്കുള്ളിൽ എവിടേക്കും വലിക്കുക. ഭൂപടവും സംഖ്യകളും മാറുന്നത് കാണുക.","hint_cross":"ഗുണനചിഹ്നമാണ് അത് യഥാർത്ഥത്തിൽ ഉണ്ടായിരുന്ന സ്ഥലം.","hint_puzzle":"ഈ ഭൂപടം തലയ്ക്കുള്ളിലെ ഒരു സ്ഥലത്ത് നിന്ന് വന്നതാണ്. അത് എവിടെയായിരുന്നു എന്ന് നിങ്ങൾ കരുതുന്നിടത്തേക്ക് <b>സ്വർണ്ണ കുത്ത് വലിക്കുക</b>.","band_all_2d":"<b>അഞ്ചും ഒരുമിച്ച്.</b> മസ്തിഷ്കം ഒരിക്കലും ഒരു താളം മാത്രം പ്രവർത്തിപ്പിക്കുന്നില്ല, ഓരോ സെൻസറും എല്ലാറ്റിന്റെയും മിശ്രണം വായിക്കുന്നു. ഭൂപടം ആ മിശ്രണത്തിന്റെ ഒരു നിമിഷം കാണിക്കുന്നു.[[kane]]","band_none_2d":"<b>മസ്തിഷ്ക താളമില്ല.</b> തലയ്ക്കുള്ളിൽ ഒന്നും സജീവമല്ല, അതിനാൽ ഓരോ സെൻസറും പൂജ്യം വായിക്കുന്നു. ഒരു താളം തിരഞ്ഞെടുക്കുക, അല്ലെങ്കിൽ തുടങ്ങാൻ കുത്തുവരയ്ക്കുള്ളിൽ വലിക്കുക.","note_a":"കുത്തുവരയുള്ള വൃത്തം മസ്തിഷ്കമാണ്; അതിന് പുറത്തുള്ള പട്ട തലയോട്ടിയും ചർമ്മവും. അസ്ഥി മസ്തിഷ്കത്തെയോ ചർമ്മത്തെയോ അപേക്ഷിച്ച് ഏകദേശം പതിനഞ്ച് മടങ്ങ് കുറവായി വൈദ്യുതി കടത്തുന്നു,[[oostendorp]] അതിനാൽ സിഗ്നൽ സെൻസറുകളിൽ എത്തുന്നതിനു മുമ്പ് വശങ്ങളിലേക്ക് പരക്കുന്നു. മങ്ങൽ സ്ലൈഡർ നിയന്ത്രിക്കുന്നത് അതാണ്.","note_b":"മങ്ങൽ കുറച്ചാൽ പസിൽ എളുപ്പം. യഥാർത്ഥ തലയോട്ടിയുടെ നിലയിലേക്ക് കൂട്ടിയാൽ ബുദ്ധിമുട്ട് &mdash; അതുകൊണ്ടാണ് EEG എന്തെങ്കിലും <em>എവിടെ</em> സംഭവിച്ചു എന്നതിനേക്കാൾ <em>എപ്പോൾ</em> സംഭവിച്ചു എന്ന് വളരെ കൃത്യമായി പറയുന്നത്.[[michel]]","v_within":"<strong>{d} mm</strong>-നുള്ളിൽ. ഈ രീതിക്ക് എത്താവുന്നത്ര അടുത്ത്.","v_good":"<strong>{d} mm</strong> അകലെ &mdash; നല്ലത്. ","v_away":"<strong>{d} mm</strong> അകലെ. ","v_lookmatch":"പക്ഷേ യോജിപ്പ് നോക്കൂ: <strong>r = {r}</strong>. ശക്തി ക്രമീകരിച്ചാൽ, നിങ്ങളുടെ സ്ഥലത്തെ റീഡിംഗുകൾ യഥാർത്ഥത്തിൽ നിന്ന് {sw} ശരാശരിക്കു ശേഷം ബാക്കിയാകുന്ന പശ്ചാത്തല EEG-യേക്കാൾ കുറവേ വ്യത്യാസപ്പെടുന്നുള്ളൂ. സെൻസറുകൾക്ക് അവയെ വേർതിരിക്കാനാവില്ല.","v_patternmatch":"മാതൃകാ യോജിപ്പ് <strong>r = {r}</strong>.","v_cloud":"നിഴലിട്ട ഓരോ സ്ഥലവും, ശക്തി ക്രമീകരിച്ചാൽ, യഥാർത്ഥത്തിൽ നിന്ന് {sw} ശരാശരിക്കു ശേഷം ബാക്കിയാകുന്ന പശ്ചാത്തല EEG-യേക്കാൾ കുറവ് വ്യത്യാസമുള്ള റീഡിംഗുകൾ നൽകുന്നു. ഡാറ്റയ്ക്ക് അവയ്ക്കിടയിൽ തിരഞ്ഞെടുക്കാനാവില്ല. കൂടുതൽ സ്വീപ്പുകളുടെ ശരാശരി എടുത്താൽ ഇത് ചുരുങ്ങും; മങ്ങൽ കൂട്ടിയാൽ വളരും.","model_2d_1":"ഇത് സെൻസർ വലയത്തിന്റെ നിരപ്പിൽ തലയുടെ കുറുകെ മുറിവാണ്, മുകളിൽ നിന്ന് നോക്കുന്നത്, മൂക്ക് മുകളിൽ. സെൻസറുകൾ അന്താരാഷ്ട്ര 10-10 സമ്പ്രദായത്തിലെ ഇരുപത് സ്ഥാനങ്ങളാണ്; നെറ്റി, ചെന്നി, പിൻഭാഗം വഴി തലയ്ക്കു ചുറ്റും, ഓരോന്നും 18&deg; അകലത്തിൽ.[[oostenveld]] സ്വർണ്ണ കുത്ത് ഒരു ഏകരൂപ ചാലകത്തിലെ സമകാലിക പ്രവർത്തനത്തിന്റെ ചെറിയ ഭാഗമാണ് (ഒരു വൈദ്യുത ദ്വിധ്രുവം); അതിന്റെ മണ്ഡലം എല്ലാ സെൻസറുകളിലും ഒരേസമയം എത്തുന്നു.[[nunez]] തലയോട്ടി ഒരു പ്രത്യേക പാളിയായി മാതൃകയാക്കിയിട്ടില്ല: അസ്ഥി മസ്തിഷ്കത്തെയും ചർമ്മത്തെയും അപേക്ഷിച്ച് ഏകദേശം പതിനഞ്ച് മടങ്ങ് കുറവായി വൈദ്യുതി കടത്തുന്നതുമൂലമുള്ള വശങ്ങളിലേക്കുള്ള പരക്കൽ,[[oostendorp]] സ്രോതസ്സ് അൽപം ആഴത്തിലാണെന്ന പോലെ പെരുമാറ്റിച്ച് അനുകരിക്കുന്നു. ആഴങ്ങൾ ഏകദേശം 89&nbsp;mm ചർമ്മ ആരം അനുമാനിക്കുന്നു. ഇതെല്ലാം പ്രദർശനത്തിനായി ലളിതമാക്കിയതാണ്.","model_2d_2":"<b>മസ്തിഷ്ക താളങ്ങൾ.</b> അഞ്ച് ബാൻഡുകളും വൈദ്യശാസ്ത്ര നിർവചനങ്ങൾ പിന്തുടരുന്നു.[[kane]] ഓരോ ബട്ടണും സ്രോതസ്സിനെ ആ താളം സാധാരണ ഏറ്റവും ശക്തമായ സ്ഥലത്തേക്ക് നീക്കി, വലിപ്പം സാധാരണ ആയതിയിലേക്ക് ക്രമീകരിക്കുന്നു. ഈ കുറുകെ മുറിവ് തലയുടെ ഉച്ചിക്ക് താഴെക്കൂടിയാണ് പോകുന്നത്, അതിനാൽ തീറ്റ (ഉച്ചിക്ക് തൊട്ടുമുന്നിൽ), ബീറ്റ (ചലനപ്പട്ടയ്ക്ക് മുകളിൽ) എന്നിവ മുറിവിലെ ഏറ്റവും അടുത്ത ബിന്ദുവിൽ വരച്ചിരിക്കുന്നു. ഈ പേജ് ഒരു നിമിഷം കാണിക്കുന്നു, കാലത്തിലുള്ള താളമല്ല &mdash; 3D സെൻസർ വല തരംഗങ്ങൾ കാണിക്കുന്നു. യഥാർത്ഥ താളങ്ങൾ ഒരേസമയം അനേകം സ്രോതസ്സുകളിൽ നിന്ന് വരുന്നു, ആളുകൾക്കിടയിൽ വ്യത്യസ്തമാണ്; ഓരോ ബാൻഡിനും ഒരു സ്രോതസ്സ് എന്നത് ലളിതവൽക്കരണമാണ്.","model_2d_3":"<b>യോജിക്കുന്ന എല്ലാ ഉത്തരങ്ങളും.</b> ചർമ്മത്തിലെ റീഡിംഗുകളിൽ നിന്ന് പിന്നോട്ട് സ്രോതസ്സ് കണ്ടെത്താൻ ഒരൊറ്റ ഉത്തരമില്ല.[[michel,grech]] നിഴലിട്ട ഭാഗം, ശക്തി ക്രമീകരിച്ചാൽ, തിരഞ്ഞെടുത്ത എണ്ണം സ്വീപ്പുകളുടെ ശരാശരിക്കു ശേഷം ബാക്കിയാകുന്ന പശ്ചാത്തല EEG-യേക്കാൾ കുറവ് വ്യത്യാസപ്പെടുന്ന, പുറത്തേക്ക് ചൂണ്ടുന്ന എല്ലാ സ്രോതസ്സുകളും കാണിക്കുന്നു, ERP-യിലെന്നപോലെ: ഒരു സ്വീപ്പിൽ ഓരോ സെൻസറിലും ഏകദേശം 10&nbsp;&micro;V, ശരാശരി എടുത്ത എണ്ണത്തിന്റെ വർഗ്ഗമൂലത്തിനനുസരിച്ച് കുറയുന്നു (10-ന് 3.2&nbsp;&micro;V, 100-ന് 1&nbsp;&micro;V). ഓരോ സെൻസറിലെയും ശബ്ദം സ്വതന്ത്രമാണെന്ന് ഇത് അനുമാനിക്കുന്നു; യഥാർത്ഥ പശ്ചാത്തല EEG അയൽ സെൻസറുകൾക്കിടയിൽ പങ്കിടപ്പെടുന്നു, അതിനാൽ പ്രായോഗികമായി ഭാഗം വലുതാണ്.","footer_2d":"പ്രദർശനത്തിനായി നിർമ്മിച്ച, ലളിതമാക്കിയ ദ്വിമാന മാതൃക."}};
+var REFNUM = {"oostenveld": 1, "nunez": 2, "michel": 3, "oostendorp": 4, "grech": 5, "kane": 6, "massimini": 7, "mitchell": 8, "klimesch": 9, "pfurt": 10, "tallon": 11, "yuval": 12};
+var TITLE_KEY = "title_2d";
+
+var LANG_NAMES = [['en','English'],['kn','ಕನ್ನಡ'],['ta','தமிழ்'],['hi','हिन्दी'],['te','తెలుగు'],['ml','മലയാളം']];
+var lang = 'en';
+try { var saved = localStorage.getItem('manotsava-lang'); if (saved && I18N[saved]) lang = saved; } catch (e) {}
+function supRefs(s){
+  return s.replace(/\[\[([\w,]+)\]\]/g, function(_, ks){
+    return '<sup>' + ks.split(',').map(function(k){ var n = REFNUM[k];
+      return '<a href="#ref-' + n + '">' + n + '</a>'; }).join(',') + '</sup>';
+  });
+}
+function t(k, v){
+  var s = (I18N[lang] && I18N[lang][k] != null) ? I18N[lang][k] : I18N.en[k];
+  if (s == null) return k;
+  if (v) s = s.replace(/\{(\w+)\}/g, function(_, n){ return v[n] != null ? v[n] : _; });
+  return supRefs(s);
+}
+function tPlain(k, v){ var d = document.createElement('div'); d.innerHTML = t(k, v); return d.textContent; }
+function applyStatic(){
+  document.documentElement.lang = lang;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-i18n]'), function(el){ el.innerHTML = t(el.dataset.i18n); });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-i18n-aria]'), function(el){ el.setAttribute('aria-label', tPlain(el.dataset.i18nAria)); });
+  document.title = 'Manotsava 2026 - EEG Team · ' + tPlain(TITLE_KEY);
+}
+(function(){
+  var sel = document.getElementById('lang');
+  LANG_NAMES.forEach(function(p){ var o = document.createElement('option'); o.value = p[0]; o.textContent = p[1]; sel.appendChild(o); });
+  sel.value = lang;
+})();
+
+
+// ---- model constants ------------------------------------------------------
+// the 10-10 equator, clockwise from the nose, 18 degrees apart (Oostenveld & Praamstra 2001)
+var NAMES = ['Fpz','Fp2','AF8','F8','FT8','T8','TP8','P8','PO8','O2',
+             'Oz','O1','PO7','P7','TP7','T7','FT7','F7','AF7','Fp1'];
+var NE = NAMES.length;
+var R_SCALP = 0.92, R_BRAIN = 0.76, HEAD_MM = 96.7; // mm per model unit: scalp radius ~ 89 mm
+var K = 4.7;                                        // scales peak amplitude to a few tens of uV
+var SWEEP_UV = 10, SWEEPS = 10;                     // ~10 uV background per sensor in one sweep
+function noiseUV(){ return SWEEP_UV/Math.sqrt(SWEEPS); }   // averaging n sweeps divides it by sqrt(n)
+
+var ele = [];
+for (var i = 0; i < NE; i++) {
+  var a = i * 2 * Math.PI / NE;
+  ele.push({ a:a, x:R_SCALP*Math.sin(a), y:-R_SCALP*Math.cos(a), name:NAMES[i] });
+}
+
+// ---- state ----------------------------------------------------------------
+var mode = 'A';
+var src   = { x: 0.00, y: 0.58 };     // the visitor's source / guess (alpha, at the back)
+var truth = { x:-0.34, y: 0.18 };     // hidden source in mode B
+var blur = 0.55, tilt = 0, showCloud = false, checked = false;
+
+// ---- physics --------------------------------------------------------------
+function moment(p, tiltDeg){
+  var r = Math.hypot(p.x, p.y);
+  var ux = r < 1e-6 ? 0 : p.x/r, uy = r < 1e-6 ? -1 : p.y/r;
+  var t = tiltDeg * Math.PI/180, c = Math.cos(t), s = Math.sin(t);
+  return { x: ux*c - uy*s, y: ux*s + uy*c };
+}
+
+// The skull spreads the signal sideways before it reaches the sensors. That is
+// imitated, not solved: the source acts as if it sat a little further in, with a
+// slightly softened distance term. shift > soft/sqrt(2) keeps a shallower source
+// always stronger and tighter. It acts on the field, so it never depends on the
+// number of sensors. Same rule as the 3D exhibit.
+function field(p, tiltDeg){
+  var m = moment(p, tiltDeg), v = new Array(NE);
+  var sh = (4 + blur*36)/HEAD_MM, so = (5 + blur*12)/HEAD_MM, a2 = so*so;
+  var r = Math.hypot(p.x, p.y), re = Math.max(3/HEAD_MM, r - sh);
+  var ux = r < 1e-6 ? 0 : p.x/r, uy = r < 1e-6 ? -1 : p.y/r;
+  var qx = ux*re, qy = uy*re;
+  for (var i = 0; i < NE; i++){
+    var dx = ele[i].x - qx, dy = ele[i].y - qy;
+    v[i] = K * (m.x*dx + m.y*dy) / Math.pow(dx*dx + dy*dy + a2, 1.5);
+  }
+  return v;
+}
+// ---- brain rhythms (band limits: IFCN glossary, Kane 2017) -----------------
+function sup(n){ return '<sup><a href="#ref-'+n+'">'+n+'</a></sup>'; }
+function sup2(a,b){ return '<sup><a href="#ref-'+a+'">'+a+'</a>,<a href="#ref-'+b+'">'+b+'</a></sup>'; }
+var BAND_ORDER = ['delta','theta','alpha','beta','gamma'];
+var BAND_GREEK = { delta:'\u03B4', theta:'\u03B8', alpha:'\u03B1', beta:'\u03B2', gamma:'\u03B3' };
+var BANDS = {
+  delta:{ hz:'<4', gain:2.5, pos:{x:0, y:-0.58},
+    info:'<b>Delta, below 4 Hz.</b> Big, slow waves of deep sleep. Each one usually starts at the '
+       + 'front of the head and sweeps backwards.' + sup(7) },
+  theta:{ hz:'4\u20138', gain:1.0, pos:{x:0.12, y:-0.50},
+    info:'<b>Theta, 4&ndash;8 Hz.</b> Seen on the midline just in front of the top of the head during '
+       + 'concentration and problem solving &mdash; above this slice, so drawn at the front.' + sup2(6,8) },
+  alpha:{ hz:'8\u201313', gain:1.5, pos:{x:0, y:0.58},
+    info:'<b>Alpha, 8&ndash;13 Hz.</b> Strongest over the back of the head when the eyes are closed '
+       + 'and the mind is idle, usually under 50 &micro;V in adults. Opening the eyes blocks it.' + sup2(6,9) },
+  beta: { hz:'14\u201330', gain:0.8, pos:{x:-0.58, y:-0.08},
+    info:'<b>Beta, 14&ndash;30 Hz.</b> Mostly under 30 &micro;V. Over the movement strip it drops '
+       + 'when you move the opposite hand and rebounds after. That strip lies above this slice, so it '
+       + 'is drawn at the nearest point, on the left side.' + sup2(6,10) },
+  gamma:{ hz:'30\u201380', gain:0.25, pos:{x:0.28, y:0.52},
+    info:'<b>Gamma, 30&ndash;80 Hz.</b> Linked to binding together what we see.' + sup(11)
+       + ' At the scalp it is tiny, and easily imitated by muscle and by the small, jumpy eye '
+       + 'movements we make without noticing.' + sup(12) }
+};
+function bandAllInfo(){ return t('band_all_2d'); }
+function bandNoneInfo(){ return t('band_none_2d'); }
+function bandInfo(k){ return t('band_' + k) + (k === 'theta' ? ' ' + t('band_theta_slice') : (k === 'beta' ? ' ' + t('band_beta_slice') : '')); }
+function blurLabel(){ return tPlain(blur < 0.18 ? 'blur_none' : (blur < 0.42 ? 'blur_some' : (blur < 0.72 ? 'blur_real' : 'blur_heavy'))); }
+function tiltLabel(){ return tPlain(Math.abs(tilt) < 12 ? 'tilt_out' : (Math.abs(tilt) > 72 ? 'tilt_side' : 'tilt_tilted')); }
+function sweepWord(){ return tPlain(SWEEPS === 1 ? 'sweep_1' : 'sweep_n', { n: SWEEPS }); }
+var lastBandToggled = 'alpha';
+function bandNames(A){
+  var n = A.map(function(k){ return tPlain('name_' + k); });
+  return n.length < 2 ? n.join('') : tPlain('names_join', { a: n.slice(0,-1).join(', '), b: n[n.length-1] });
+}
+function bandsInfo(A, last){
+  if (A.length === 1) return bandInfo(A[0]);
+  if (!A.length) return bandNoneInfo();
+  if (A.length === BAND_ORDER.length) return bandAllInfo();
+  return t('mix', { names: bandNames(A) })
+       + (last && A.indexOf(last) >= 0 ? '<br>' + bandInfo(last) : '');
+}
+function toggledBands(k){                          // the set after pressing band k
+  var on = {}; activeBands().forEach(function(x){ on[x] = true; });
+  if (on[k]) delete on[k]; else on[k] = true;
+  return on;
+}
+
+var bandsOn = { alpha:true };
+function activeBands(){ return BAND_ORDER.filter(function(k){ return bandsOn[k]; }); }
+function singleBand(){ var a = activeBands(); return a.length === 1 ? a[0] : null; }
+function bandSrc(k){ return singleBand() === k ? src : BANDS[k].pos; }
+function brainMap(){                                // every active band, summed
+  var v = new Array(NE).fill(0), one = singleBand();
+  activeBands().forEach(function(k){
+    var f = field(bandSrc(k), one === k ? tilt : 0), g = BANDS[k].gain;
+    for (var i = 0; i < NE; i++) v[i] += f[i]*g;
+  });
+  return v;
+}
+
+// what is left after the best-fitting rival takes its own strength, over all sensors
+function leftover(a, target){
+  var ss = 0; for (var i = 0; i < NE; i++) ss += target[i]*target[i];
+  var c = corr(a, target);
+  return c <= 0 ? Math.sqrt(ss) : Math.sqrt(ss*(1 - c*c));
+}
+
+function corr(a, b){
+  var sa = 0, sb = 0, sab = 0;
+  for (var i = 0; i < NE; i++){ sa += a[i]*a[i]; sb += b[i]*b[i]; sab += a[i]*b[i]; }
+  var den = Math.sqrt(sa*sb);
+  return den < 1e-12 ? 0 : sab/den;
+}
+
+// ---- colour ---------------------------------------------------------------
+function css(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function hex2rgb(h){
+  h = h.replace('#','');
+  return [parseInt(h.substr(0,2),16), parseInt(h.substr(2,2),16), parseInt(h.substr(4,2),16)];
+}
+var PAL = {};
+function refreshPalette(){
+  PAL.pos  = hex2rgb(css('--pos'));
+  PAL.neg  = hex2rgb(css('--neg'));
+  PAL.zero = hex2rgb(css('--zero'));
+  PAL.line = css('--line'); PAL.fg = css('--fg'); PAL.dim = css('--dim');
+  PAL.accent = css('--accent'); PAL.panel = css('--panel'); PAL.sunk = css('--sunk');
+}
+function ramp(t){                                    // t in [-1, 1]
+  var end = t >= 0 ? PAL.pos : PAL.neg, k = Math.min(1, Math.abs(t));
+  k = Math.pow(k, 0.72);
+  return [
+    Math.round(PAL.zero[0] + (end[0]-PAL.zero[0])*k),
+    Math.round(PAL.zero[1] + (end[1]-PAL.zero[1])*k),
+    Math.round(PAL.zero[2] + (end[2]-PAL.zero[2])*k)
+  ];
+}
+
+// ---- canvas ---------------------------------------------------------------
+var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+var W = 0, cx = 0, cy = 0, SC = 1;
+
+function resize(){
+  var box = cv.parentElement.getBoundingClientRect();
+  var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  W = Math.max(240, Math.round(box.width));
+  cv.width = Math.round(W*dpr); cv.height = Math.round(W*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  cx = W/2; cy = W/2; SC = W*0.5/1.30;
+  draw();
+}
+function toPx(p){ return { x: cx + p.x*SC, y: cy + p.y*SC }; }
+function toModel(px,py){ return { x:(px-cx)/SC, y:(py-cy)/SC }; }
+
+function interp(v, mx, my){                         // inverse-distance from the sensors
+  var num = 0, den = 0;
+  for (var i = 0; i < NE; i++){
+    var dx = ele[i].x - mx, dy = ele[i].y - my;
+    var d2 = dx*dx + dy*dy;
+    if (d2 < 1e-5) return v[i];
+    var w = 1/(d2*d2);
+    num += w*v[i]; den += w;
+  }
+  return num/den;
+}
+
+function drawMap(v, peak){
+  var step = 3, half = step/2;
+  for (var py = 0; py < W; py += step){
+    for (var px = 0; px < W; px += step){
+      var m = toModel(px+half, py+half);
+      if (Math.hypot(m.x, m.y) > R_SCALP + 0.045) continue;
+      var c = ramp(interp(v, m.x, m.y)/peak);
+      ctx.fillStyle = 'rgb('+c[0]+','+c[1]+','+c[2]+')';
+      ctx.fillRect(px, py, step, step);
+    }
+  }
+}
+
+function clipHead(){
+  ctx.beginPath();
+  ctx.arc(cx, cy, (R_SCALP+0.045)*SC, 0, Math.PI*2);
+  ctx.clip();
+}
+
+var CLOUD_Z = 1;                                  // leftover below one noise unit
+function drawCloud(target){
+  var N = 84;
+  ctx.save();
+  for (var iy = 0; iy < N; iy++){
+    for (var ix = 0; ix < N; ix++){
+      var mx = -R_BRAIN + 2*R_BRAIN*(ix+0.5)/N;
+      var my = -R_BRAIN + 2*R_BRAIN*(iy+0.5)/N;
+      if (Math.hypot(mx,my) > R_BRAIN) continue;
+      var z = leftover(field({x:mx,y:my}, 0), target)/noiseUV();
+      if (z < CLOUD_Z){
+        var p = toPx({x:mx,y:my});
+        var alpha = 0.20 + 0.60*(1 - z/CLOUD_Z);
+        ctx.fillStyle = 'rgba(192,122,23,'+alpha.toFixed(3)+')';
+        ctx.fillRect(p.x - SC*R_BRAIN/N, p.y - SC*R_BRAIN/N, 2*SC*R_BRAIN/N+1, 2*SC*R_BRAIN/N+1);
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function marker(p, kind, label){
+  var q = toPx(p);
+  ctx.save();
+  if (kind === 'truth'){
+    ctx.strokeStyle = PAL.fg; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(q.x-9,q.y-9); ctx.lineTo(q.x+9,q.y+9);
+    ctx.moveTo(q.x+9,q.y-9); ctx.lineTo(q.x-9,q.y+9); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.arc(q.x, q.y, 11, 0, Math.PI*2);
+    ctx.fillStyle = PAL.accent; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = PAL.panel; ctx.stroke();
+    if (label){
+      ctx.font = '700 14px "IBM Plex Mono", monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1A1205'; ctx.fillText(label, q.x, q.y + 0.5);
+    } else {
+      ctx.beginPath(); ctx.arc(q.x, q.y, 3.2, 0, Math.PI*2);
+      ctx.fillStyle = PAL.panel; ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+function draw(){
+  refreshPalette();
+  ctx.clearRect(0,0,W,W);
+
+  var shown = (mode === 'B') ? field(truth, 0) : brainMap();
+  var peak = 0;
+  for (var i = 0; i < NE; i++) peak = Math.max(peak, Math.abs(shown[i]));
+  if (peak < 1e-9) peak = 1e-9;
+
+  ctx.save(); clipHead(); drawMap(shown, peak); ctx.restore();
+
+  // head outline and the skull gap
+  ctx.strokeStyle = PAL.line; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, (R_SCALP+0.045)*SC, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([4,5]); ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(cx, cy, R_BRAIN*SC, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // nose, so front is unambiguous
+  ctx.beginPath();
+  ctx.moveTo(cx - 11, cy - (R_SCALP+0.045)*SC + 3);
+  ctx.lineTo(cx, cy - (R_SCALP+0.045)*SC - 13);
+  ctx.lineTo(cx + 11, cy - (R_SCALP+0.045)*SC + 3);
+  ctx.strokeStyle = PAL.line; ctx.lineWidth = 2; ctx.stroke();
+
+  if (mode === 'B' && showCloud) drawCloud(field(truth, 0));
+
+  // sensors
+  var small = W < 330;
+  for (var j = 0; j < NE; j++){
+    var p = toPx(ele[j]), t = shown[j]/peak, c = ramp(t);
+    ctx.beginPath(); ctx.arc(p.x, p.y, small ? 6 : 8.5, 0, Math.PI*2);
+    ctx.fillStyle = 'rgb('+c[0]+','+c[1]+','+c[2]+')'; ctx.fill();
+    ctx.lineWidth = 1.6; ctx.strokeStyle = PAL.fg; ctx.stroke();
+    if (!small){
+      var lx = cx + ele[j].x*SC*1.145, ly = cy + ele[j].y*SC*1.145;
+      ctx.fillStyle = PAL.dim;
+      ctx.font = '500 10.5px "IBM Plex Mono", monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(ele[j].name, lx, ly);
+    }
+  }
+
+  if (mode === 'B' && checked) marker(truth, 'truth');
+  if (mode === 'B') marker(src, 'guess');
+  else {
+    var A = activeBands();
+    A.forEach(function(k){ marker(bandSrc(k), 'guess', A.length > 1 ? BAND_GREEK[k] : null); });
+  }
+  updatePanel(shown, peak);
+}
+
+// ---- panel ----------------------------------------------------------------
+var $ = function(id){ return document.getElementById(id); };
+
+function depthMM(p){ return Math.max(0, (R_SCALP - Math.hypot(p.x,p.y)) * HEAD_MM); }
+
+function updatePanel(shown, peak){
+  var peakI = 0;
+  for (var i = 0; i < NE; i++) if (Math.abs(shown[i]) > Math.abs(shown[peakI])) peakI = i;
+  var cells, d = depthMM(src);
+
+  if (mode === 'A'){
+    var A = activeBands(), one = singleBand(), none = !A.length;
+    cells = [
+      [t('k_rhythm'), none ? tPlain('rhythm_none') : (one ? BANDS[one].hz + ' Hz' : tPlain('rhythm_n', { n: A.length }))],
+      [t('k_depth'), one ? d.toFixed(0) + ' mm' : '\u2014'],
+      [t('k_peaksensor'), none ? '\u2014' : ele[peakI].name],
+      [t('k_peak'), (none ? 0 : peak).toFixed(1) + ' µV'],
+      [t('k_half'), none ? '\u2014' : countHalf(shown, peak)]
+    ];
+    $('hint').innerHTML = none
+      ? t('hint_none_2d')
+      : (!one ? t('hint_multi_2d', { n: A.length })
+      : d > 42 ? t('hint_deep_2d')
+      : (d < 22 ? t('hint_shallow_2d') : t('hint_default_2d')));
+  } else {
+    var c = corr(field(src, 0), field(truth, 0));
+    var dist = Math.hypot(src.x-truth.x, src.y-truth.y) * HEAD_MM;
+    cells = [
+      [t('k_match'), moved ? 'r = ' + c.toFixed(2) : '\u2014'],
+      [t('k_yourdepth'), d.toFixed(0) + ' mm'],
+      [t('k_peaksensor'), ele[peakI].name],
+      [t('k_distoff'), checked ? dist.toFixed(0) + ' mm' : '—']
+    ];
+    $('hint').innerHTML = checked
+      ? t('hint_cross')
+      : t('hint_puzzle');
+  }
+
+  $('readout').innerHTML = cells.map(function(c){
+    return '<div class="cell"><div class="k">'+c[0]+'</div><div class="v">'+c[1]+'</div></div>';
+  }).join('');
+}
+
+function countHalf(v, peak){
+  var n = 0;
+  for (var i = 0; i < NE; i++) if (Math.abs(v[i]) > 0.5*peak) n++;
+  return n + ' of ' + NE;
+}
+
+function noteA(){ return t('note_a'); }
+function noteB(){ return t('note_b'); }
+
+// ---- interaction ----------------------------------------------------------
+var dragging = false, moved = false;
+function clampToBrain(p){
+  var r = Math.hypot(p.x, p.y);
+  if (r > R_BRAIN - 0.02){ var k = (R_BRAIN - 0.02)/r; p.x *= k; p.y *= k; }
+  return p;
+}
+function pointer(e){
+  var r = cv.getBoundingClientRect();
+  return toModel(e.clientX - r.left, e.clientY - r.top);
+}
+cv.addEventListener('pointerdown', function(e){
+  dragging = true; cv.classList.add('dragging');
+  cv.setPointerCapture(e.pointerId);
+  if (mode === 'A' && activeBands().length > 1){ dragging = false; cv.classList.remove('dragging'); draw(); return; }
+  if (mode === 'A' && !activeBands().length) setBandsUI({ alpha:true });
+  src = clampToBrain(pointer(e)); checked = false; moved = true; draw();
+});
+cv.addEventListener('pointermove', function(e){
+  if (!dragging) return;
+  src = clampToBrain(pointer(e)); draw();
+});
+function endDrag(e){
+  if (!dragging) return;
+  dragging = false; cv.classList.remove('dragging');
+  if (e && e.pointerId != null && cv.hasPointerCapture(e.pointerId)) cv.releasePointerCapture(e.pointerId);
+  draw();
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+
+$('blur').addEventListener('input', function(e){
+  blur = e.target.value/100;
+  $('blurV').textContent = blurLabel();
+  checked = false; draw();
+});
+$('tilt').addEventListener('input', function(e){
+  tilt = +e.target.value;
+  $('tiltV').textContent = tiltLabel();
+  draw();
+});
+function ensureSingle(){ if (!singleBand()) setBandsUI({ alpha:true }); }
+$('bDeep').addEventListener('click', function(){ ensureSingle(); src = {x:0.07,y:0.05}; draw(); });
+$('bShallow').addEventListener('click', function(){ ensureSingle(); src = {x:0.25,y:-0.69}; draw(); });
+function setBandsUI(on, last){
+  bandsOn = on; lastBandToggled = last;
+  var A = activeBands();
+  Array.prototype.forEach.call(document.querySelectorAll('.chip[data-band]'), function(b){
+    b.setAttribute('aria-pressed', on[b.dataset.band] ? 'true' : 'false'); });
+  $('bBandsAll').setAttribute('aria-pressed', A.length === BAND_ORDER.length ? 'true' : 'false');
+  $('bBandsClear').setAttribute('aria-pressed', A.length === 0 ? 'true' : 'false');
+  $('bandHint').innerHTML = bandsInfo(A, last);
+}
+Array.prototype.forEach.call(document.querySelectorAll('.chip[data-band]'), function(b){
+  b.addEventListener('click', function(){
+    setBandsUI(toggledBands(b.dataset.band), b.dataset.band);   // buttons toggle, so bands combine
+    var one = singleBand();
+    if (one){ var q = BANDS[one].pos; src = { x:q.x, y:q.y }; }  // a lone band starts at its home
+    draw();
+  });
+});
+$('bBandsAll').addEventListener('click', function(){
+  var on = {}; BAND_ORDER.forEach(function(k){ on[k] = true; }); setBandsUI(on); draw();
+});
+$('bBandsClear').addEventListener('click', function(){ setBandsUI({}); draw(); });
+setBandsUI({ alpha:true });
+
+$('bCheck').addEventListener('click', function(){
+  checked = true;
+  var dist = Math.hypot(src.x-truth.x, src.y-truth.y)*HEAD_MM;
+  var target = field(truth,0), mine = field(src,0);
+  var c = corr(mine, target), z = leftover(mine, target)/noiseUV();
+  var msg;
+  if (dist < 12)      msg = t('v_within', { d: dist.toFixed(0) });
+  else if (dist < 28) msg = t('v_good', { d: dist.toFixed(0) });
+  else                msg = t('v_away', { d: dist.toFixed(0) });
+  if (dist >= 12 && z < CLOUD_Z && c > 0)
+    msg += t('v_lookmatch', { r: c.toFixed(2), sw: sweepWord() });
+  else if (dist >= 12)
+    msg += t('v_patternmatch', { r: c.toFixed(2) });
+  $('verdict').innerHTML = msg;
+  draw();
+});
+
+$('bCloud').addEventListener('click', function(){
+  showCloud = !showCloud;
+  this.setAttribute('aria-pressed', showCloud ? 'true' : 'false');
+  this.textContent = tPlain(showCloud ? 'btn_cloud_hide' : 'btn_cloud_show');
+  $('verdict').innerHTML = showCloud
+    ? t('v_cloud', { sw: sweepWord() })
+    : '';
+  draw();
+});
+
+Array.prototype.forEach.call(document.querySelectorAll('.segb'), function(btn){
+  btn.addEventListener('click', function(){
+    SWEEPS = +btn.dataset.n;
+    Array.prototype.forEach.call(document.querySelectorAll('.segb'), function(o){
+      o.setAttribute('aria-pressed', o === btn ? 'true' : 'false'); });
+    $('sweepsV').innerHTML = t('sweeps_noise', { n: noiseUV().toFixed(1) });
+    if (showCloud) $('bCloud').click(), $('bCloud').click();
+    else if (checked) $('bCheck').click();
+    else draw();
+  });
+});
+$('bNew').addEventListener('click', function(){
+  var a = Math.random()*Math.PI*2, r = 0.18 + Math.random()*(R_BRAIN-0.24);
+  truth = { x:r*Math.sin(a), y:-r*Math.cos(a) };
+  src = { x:0.16, y:0.16 }; moved = false; checked = false;
+  showCloud = false;
+  $('bCloud').setAttribute('aria-pressed','false');
+  $('bCloud').textContent = tPlain('btn_cloud_show');
+  $('verdict').innerHTML = '';
+  draw();
+});
+
+function setMode(m){
+  mode = m;
+  var a = m === 'A';
+  $('tabA').setAttribute('aria-selected', a ? 'true':'false');
+  $('tabB').setAttribute('aria-selected', a ? 'false':'true');
+  $('btnsA').hidden = !a; $('btnsB').hidden = a; $('sweepsRow').hidden = a;
+  $('tiltRow').hidden = !a; $('bandRow').hidden = !a;
+  $('ctlTitle').textContent = tPlain(a ? 'controls' : 'ctl_guess');
+  $('note').innerHTML = a ? noteA() : noteB();
+  $('verdict').innerHTML = '';
+  checked = false; showCloud = false;
+  $('bCloud').setAttribute('aria-pressed','false');
+  $('bCloud').textContent = tPlain('btn_cloud_show');
+  if (!a) src = { x:0.16, y:0.16 };
+  else { var q = BANDS[singleBand() || 'alpha'].pos; src = { x:q.x, y:q.y }; }
+  moved = false;
+  draw();
+}
+$('tabA').addEventListener('click', function(){ setMode('A'); });
+$('tabB').addEventListener('click', function(){ setMode('B'); });
+
+window.addEventListener('resize', resize);
+if (window.matchMedia) {
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  if (mq.addEventListener) mq.addEventListener('change', draw);
+}
+function refreshLang(){
+  applyStatic();
+  $('ctlTitle').textContent = tPlain(mode === 'A' ? 'controls' : 'ctl_guess');
+  $('note').innerHTML = mode === 'A' ? noteA() : noteB();
+  $('blurV').textContent = blurLabel();
+  $('tiltV').textContent = tiltLabel();
+  $('sweepsV').innerHTML = t('sweeps_noise', { n: noiseUV().toFixed(1) });
+  $('bCloud').textContent = tPlain(showCloud ? 'btn_cloud_hide' : 'btn_cloud_show');
+  $('bandHint').innerHTML = bandsInfo(activeBands(), lastBandToggled);
+  if (showCloud) $('verdict').innerHTML = t('v_cloud', { sw: sweepWord() });
+  else if (checked) $('bCheck').click();
+  else $('verdict').innerHTML = '';
+  draw();
+}
+$('lang').addEventListener('change', function(){
+  lang = this.value;
+  try { localStorage.setItem('manotsava-lang', lang); } catch (e) {}
+  refreshLang();
+});
+$('note').innerHTML = noteA();
+resize();
+refreshLang();
+})();
+</script>

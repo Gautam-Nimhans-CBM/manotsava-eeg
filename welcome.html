@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Welcome · Listening to the Brain · Manotsava 2026</title>
+<meta name="description" content="Interactive EEG pages from the Manotsava 2026 EEG team, NIMHANS, Bengaluru.">
+<script src="config.js"></script>
+<script src="site.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,500;0,600;1,500&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Manotsava frame: ivory paper, charcoal ink, Spectral headings with an italic accent, lime highlight */
+:root{
+  --ivory:#fffaec; --card:#ffffff; --ink:#1a1916; --ink-2:#322f2b; --muted:#4d4d4d;
+  --line:#d9d8d8; --green:#1e8558; --lime:#efe993;
+  --f-head:"Spectral",Georgia,serif;
+  --f-body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--ivory); color:var(--ink); font-family:var(--f-body); font-size:18px; line-height:1.55;}
+.wrap{max-width:760px; margin:0 auto; padding:28px max(16px,env(safe-area-inset-left,0px)) 48px;}
+.kicker{font-family:var(--f-mono); font-size:13px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--green); margin:0 0 14px;}
+h1{font-family:var(--f-head); font-weight:600; font-size:clamp(34px,7vw,56px); line-height:1.05; letter-spacing:-.015em; margin:0 0 14px; text-wrap:balance;}
+h1 em{font-style:italic; font-weight:500; color:var(--green);}
+.lead{font-size:clamp(17px,2.6vw,20px); color:var(--ink-2); margin:0 0 6px;}
+.wave{display:block; width:100%; height:30px; margin:18px 0 22px;}
+.wave path{fill:none; stroke:var(--ink); stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke;}
+.card{background:var(--card); border:1.5px solid var(--line); border-radius:22px; padding:8px; overflow:hidden;}
+.card iframe{display:block; width:100%; height:1500px; border:0; border-radius:16px; background:var(--card);}
+.steps{display:flex; flex-wrap:wrap; gap:8px 18px; margin:0 0 16px; padding:0; list-style:none; font-size:15px; color:var(--ink-2);}
+.steps li{display:flex; align-items:center; gap:8px;}
+.steps b{display:inline-grid; place-items:center; width:26px; height:26px; border-radius:50%; background:var(--lime);
+  font-family:var(--f-head); font-weight:600; font-size:15px; color:var(--ink);}
+.note{font-size:15px; color:var(--muted); margin:16px 4px 0;}
+.note a, .done a{color:var(--green); font-weight:700;}
+.done{display:none; text-align:center; padding:48px 20px;}
+.done h2{font-family:var(--f-head); font-weight:600; font-size:34px; margin:0 0 8px;}
+.done p{margin:0 0 22px; color:var(--ink-2);}
+.btn{display:inline-block; font:inherit; font-weight:700; text-decoration:none; color:var(--ink); background:var(--lime);
+  border:2px solid var(--ink); border-radius:999px; padding:12px 26px;}
+.btn:focus-visible{outline:3px solid var(--green); outline-offset:3px;}
+body.is-done .card{display:none;}
+body.is-done .done{display:block;}
+.off{background:var(--card); border:1.5px dashed var(--line); border-radius:22px; padding:28px; text-align:center;}
+footer{margin-top:34px; font-size:13.5px; color:var(--muted); border-top:1.5px solid var(--line); padding-top:14px;}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <p class="kicker">Manotsava 2026 · EEG team · NIMHANS, Bengaluru</p>
+  <h1>Listening to <em>the Brain</em></h1>
+  <p class="lead">Before you explore, tell us a little about yourself. It takes under a minute, your answers are anonymous,
+    and they help us learn who these EEG pages reach.</p>
+  <svg class="wave" id="wave" viewBox="0 0 760 30" preserveAspectRatio="none" aria-hidden="true"><path/></svg>
+
+  <ol class="steps" aria-label="How this works">
+    <li><b>1</b>Answer a few quick questions</li>
+    <li><b>2</b>Press <i>Submit</i></li>
+    <li><b>3</b>The EEG pages open by themselves</li>
+  </ol>
+
+  <div class="card" id="formCard"></div>
+
+  <section class="done" id="done" aria-live="polite">
+    <h2>Thank you!</h2>
+    <p>Opening the EEG pages for you…</p>
+    <a class="btn" id="go" href="index.html">Continue to the site →</a>
+  </section>
+
+  <p class="note">If you are under 18, please check with a parent or guardian before you continue.
+    After you submit, this site measures how its pages are used (pages visited, time spent, clicks, device and
+    approximate location) with Google Analytics and Microsoft Clarity. <a href="privacy.html">How we use this information</a>.</p>
+
+  <footer>Manotsava – National Mental Health Festival · 5–6 December 2026 · Jayamahal Palace Hotel, Bengaluru</footer>
+</main>
+<script>
+(function () {
+  /* a short EEG-like trace, the same motif as the poster */
+  var d = "", seed = 11;
+  function rnd(){ seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+  for (var x = 0; x <= 760; x += 3) {
+    var t = x / 760, burst = Math.exp(-Math.pow((t - .3) / .04, 2)) + Math.exp(-Math.pow((t - .72) / .03, 2));
+    var y = 15 + 4.5 * Math.sin(x / 19) + 2.5 * Math.sin(x / 8 + 1.3) + burst * 8 * Math.sin(x / 2.7) + (rnd() - .5) * 2;
+    d += (x ? "L" : "M") + x + " " + Math.max(1, Math.min(29, y)).toFixed(1);
+  }
+  document.querySelector("#wave path").setAttribute("d", d);
+
+  /* config.js may hold the plain responder link, the editor link, or the whole <iframe> embed code;
+     turn any of them into the embeddable viewform address */
+  function formUrl(raw) {
+    raw = String(raw || "").trim();
+    var m = raw.match(/src\s*=\s*["']([^"']+)["']/i);
+    if (m) raw = m[1];
+    raw = raw.replace(/&amp;/g, "&");
+    var g = raw.match(/^(https:\/\/docs\.google\.com\/forms\/(?:u\/\d+\/)?d\/(?:e\/)?[\w-]+)/);
+    if (g) return g[1].replace(/\/u\/\d+\//, "/") + "/viewform?embedded=true";
+    return raw;   /* e.g. a forms.gle short link: Google redirects it to the form */
+  }
+
+  var S = window.ManotsavaSite, C = (S && S.config) || {};
+  var card = document.getElementById("formCard");
+  var next = new URLSearchParams(location.search).get("next") || "index.html";
+  if (!/^[\w-]+\.html$/.test(next)) next = "index.html";
+
+  if (!C.formEmbedUrl) {
+    /* no form configured yet: say so and let people through */
+    card.outerHTML = '<div class="off"><p>The visitor form is not set up yet.</p>' +
+                     '<a class="btn" href="' + next + '">Continue to the site →</a></div>';
+    return;
+  }
+
+  /* The form loads once on arrival, once per extra section, and once more when it is submitted
+     (Google shows its confirmation page in the frame). Counting loads is how a static page can
+     tell the form was sent, without reading the cross-origin frame. The frame is built here with its
+     src already set, so no browser can fire an extra about:blank load that would be miscounted. */
+  var loads = 0, need = (+C.formSections || 1) + 1;
+  var frame = document.createElement("iframe");
+  frame.title = "Visitor questionnaire (Google Form)";
+  frame.src = formUrl(C.formEmbedUrl);
+  frame.addEventListener("load", function () {
+    loads++;
+    if (loads > 1 && loads < need) { card.scrollIntoView({ behavior: "smooth" }); }
+    if (loads >= need) finish();
+  });
+  card.appendChild(frame);
+
+  function finish() {
+    var target = S ? S.formDone() : next;
+    document.getElementById("go").setAttribute("href", target);
+    document.body.classList.add("is-done");
+    scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(function () { location.href = target; }, 1800);
+  }
+})();
+</script>
+</body>
+</html>
