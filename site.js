@@ -13,6 +13,9 @@
   var isGate = page === "welcome.html";
   var isOpen = isGate || page === "privacy.html";
   var gateOn = !!C.formEmbedUrl;
+  /* language picked in the switcher (lang.js, or the menu on the two interactive pages) */
+  var siteLang = "en";
+  try { siteLang = localStorage.getItem("manotsava-lang") || "en"; } catch (e) {}
 
   /* ---------- remembering that the form was filled ---------- */
   function readPass() {
@@ -73,7 +76,9 @@
       window.dataLayer = window.dataLayer || [];
       window.gtag = function () { window.dataLayer.push(arguments); };
       window.gtag("js", new Date());
-      window.gtag("config", C.ga4Id, arrival());
+      var cfg = arrival();
+      cfg.site_lang = siteLang;
+      window.gtag("config", C.ga4Id, cfg);
     }
     if (C.clarityId) {
       window.clarity = window.clarity || function () { (window.clarity.q = window.clarity.q || []).push(arguments); };
@@ -89,13 +94,16 @@
     sent++;
     params = params || {};
     params.page = page;
+    params.site_lang = siteLang;
     if (window.gtag) window.gtag("event", name, params);
     if (window.clarity) window.clarity("event", name);
   }
 
   /* what the visitor does on the interactive pages */
   function label(el) {
-    var t = el.getAttribute("aria-label") || el.getAttribute("title") || el.textContent || el.name || el.id || el.tagName;
+    /* the English wording (kept by lang.js), so a button counts as one control whatever the language */
+    var t = el.getAttribute("data-en-label") || el.getAttribute("aria-label") || el.getAttribute("title") ||
+            el.getAttribute("data-en") || el.textContent || el.name || el.id || el.tagName;
     return String(t).replace(/\s+/g, " ").trim().slice(0, 60);
   }
   var lastKey = "", lastAt = 0;

@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="lang.js"></script>
 <title>Welcome · Listening to the Brain · Manotsava 2026</title>
 <meta name="description" content="Interactive EEG pages from the Manotsava 2026 EEG team, NIMHANS, Bengaluru.">
 <script src="config.js"></script>
@@ -45,6 +46,7 @@ h1 em{font-style:italic; font-weight:500; color:var(--green);}
 .btn:focus-visible{outline:3px solid var(--green); outline-offset:3px;}
 body.is-done .card{display:none;}
 body.is-done .done{display:block;}
+.formlang{margin:0 4px 10px; font-size:15px; font-weight:700; color:var(--ink-2);}
 .off{background:var(--card); border:1.5px dashed var(--line); border-radius:22px; padding:28px; text-align:center;}
 footer{margin-top:34px; font-size:13.5px; color:var(--muted); border-top:1.5px solid var(--line); padding-top:14px;}
 </style>
@@ -101,6 +103,7 @@ footer{margin-top:34px; font-size:13.5px; color:var(--muted); border-top:1.5px s
     return raw;   /* e.g. a forms.gle short link: Google redirects it to the form */
   }
 
+  var T = window.T || function (s) { return s; };
   var S = window.ManotsavaSite, C = (S && S.config) || {};
   var card = document.getElementById("formCard");
   var next = new URLSearchParams(location.search).get("next") || "index.html";
@@ -108,8 +111,8 @@ footer{margin-top:34px; font-size:13.5px; color:var(--muted); border-top:1.5px s
 
   if (!C.formEmbedUrl) {
     /* no form configured yet: say so and let people through */
-    card.outerHTML = '<div class="off"><p>The visitor form is not set up yet.</p>' +
-                     '<a class="btn" href="' + next + '">Continue to the site →</a></div>';
+    card.outerHTML = '<div class="off"><p>' + T("The visitor form is not set up yet.") + '</p>' +
+                     '<a class="btn" href="' + next + '">' + T("Continue to the site →") + '</a></div>';
     return;
   }
 
@@ -119,7 +122,7 @@ footer{margin-top:34px; font-size:13.5px; color:var(--muted); border-top:1.5px s
      src already set, so no browser can fire an extra about:blank load that would be miscounted. */
   var loads = 0, need = (+C.formSections || 1) + 1;
   var frame = document.createElement("iframe");
-  frame.title = "Visitor questionnaire (Google Form)";
+  frame.title = T("Visitor questionnaire (Google Form)");
   frame.src = formUrl(C.formEmbedUrl);
   frame.addEventListener("load", function () {
     loads++;
@@ -127,6 +130,13 @@ footer{margin-top:34px; font-size:13.5px; color:var(--muted); border-top:1.5px s
     if (loads >= need) finish();
   });
   card.appendChild(frame);
+  /* the form itself stays in English: tell visitors reading this page in another language */
+  if (window.SiteLang && window.SiteLang.lang !== "en") {
+    var note = document.createElement("p");
+    note.className = "formlang";
+    note.textContent = T("The questions in the form are in English.");
+    card.parentNode.insertBefore(note, card);
+  }
 
   function finish() {
     var target = S ? S.formDone() : next;
